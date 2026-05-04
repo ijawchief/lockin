@@ -39,7 +39,7 @@ function TaskCard({ task }: { task: Task }) {
 
   // Who is working on this task right now (from presence, excluding self)
   const workingOn = Object.values(presence).filter(
-    p => p.task_id === task.id && p.user_id !== profile?.id && p.is_running
+    p => p.task_id === task.id && p.user_id !== profile?.id && p.user_id !== task.assigned_to && p.is_running
   )
 
   // Time spent on task: completed pomos × pomo duration
