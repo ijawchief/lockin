@@ -161,10 +161,19 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
       Notification.requestPermission()
     }
 
-    // Subscribe to task assignments in real-time
+    // Subscribe to task assignments + project membership in real-time
     notifChannelRef.current?.unsubscribe()
     const notifCh = supabase
       .channel(`task-notifs-${user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'project_members',
+        filter: `user_id=eq.${user.id}`,
+      }, () => {
+        loadProjects()
+        loadTasks()
+      })
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
