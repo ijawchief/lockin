@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { RotateCcw, SkipForward } from 'lucide-react'
 import { useApp } from '@/contexts/AppContext'
 import type { TimerMode } from '@/lib/types'
@@ -25,6 +26,22 @@ function getDuration(mode: TimerMode, settings: { pomo_duration: number; short_b
   return settings.long_break * 60
 }
 
+function playClick() {
+  try {
+    const ctx = new AudioContext()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(700, ctx.currentTime)
+    gain.gain.setValueAtTime(0.12, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.07)
+    osc.start()
+    osc.stop(ctx.currentTime + 0.07)
+  } catch {}
+}
+
 export default function TimerView() {
   const { mode, setMode, timeLeft, isRunning, startStop, reset, skip, pomosToday, cycleCount, settings, pinnedTaskId, tasks } = useApp()
   const pinnedTask = pinnedTaskId ? tasks.find(t => t.id === pinnedTaskId) : null
@@ -36,9 +53,27 @@ export default function TimerView() {
   const mins = String(Math.floor(timeLeft / 60)).padStart(2, '0')
   const secs = String(timeLeft % 60).padStart(2, '0')
 
-  // Pomo cycle dots (4 marks)
   const interval = settings.long_break_interval
   const cyclePos = cycleCount % interval
+
+  // Dynamic page title — updates even when tab is in background
+  useEffect(() => {
+    if (isRunning) {
+      document.title = pinnedTask
+        ? `${mins}:${secs} — ${pinnedTask.title} | LockIn`
+        : `${mins}:${secs} | LockIn`
+    } else {
+      document.title = 'LockIn'
+    }
+  }, [timeLeft, isRunning, pinnedTask?.title])
+
+  // Reset title on unmount
+  useEffect(() => () => { document.title = 'LockIn' }, [])
+
+  function handleStartStop() {
+    playClick()
+    startStop()
+  }
 
   return (
     <div className="card p-5 mx-4 mt-3">
@@ -65,14 +100,7 @@ export default function TimerView() {
       <div className="flex justify-center mb-5">
         <div className="relative flex items-center justify-center" style={{ width: 220, height: 220 }}>
           <svg width="220" height="220" className={isRunning ? 'timer-glow' : ''}>
-            {/* Background circle */}
-            <circle
-              cx="110" cy="110" r={RADIUS}
-              fill="none"
-              stroke="#F0F2F5"
-              strokeWidth="10"
-            />
-            {/* Progress circle */}
+            <circle cx="110" cy="110" r={RADIUS} fill="none" stroke="#F0F2F5" strokeWidth="10" />
             <circle
               cx="110" cy="110" r={RADIUS}
               fill="none"
@@ -85,7 +113,6 @@ export default function TimerView() {
               style={{ transition: 'stroke-dashoffset 0.5s linear' }}
             />
           </svg>
-          {/* Time display */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-5xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>
               {mins}:{secs}
@@ -129,7 +156,7 @@ export default function TimerView() {
           <RotateCcw size={20} />
         </button>
         <button
-          onClick={startStop}
+          onClick={handleStartStop}
           className="btn-primary flex-1 h-14 text-lg"
           style={{ maxWidth: 200 }}
         >
