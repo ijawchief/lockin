@@ -4,8 +4,8 @@ import { Check, X } from 'lucide-react'
 import { useApp } from '@/contexts/AppContext'
 
 export default function InboxView() {
-  const { tasks, acceptTask, declineTask } = useApp()
-  const inboxTasks = tasks.filter(t => t.assigned_to && t.assignment_status === 'pending')
+  const { tasks, acceptTask, declineTask, user } = useApp()
+  const inboxTasks = tasks.filter(t => t.assigned_to === user?.id && t.assignment_status === 'pending')
 
   return (
     <div className="scroll-area px-4 pt-4">

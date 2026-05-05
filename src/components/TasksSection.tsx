@@ -202,12 +202,14 @@ function TaskCard({ task }: { task: Task }) {
         {showMenu && (
           <div className="absolute right-0 top-8 rounded-xl shadow-lg border z-10 py-1 min-w-36"
             style={{ background: 'white', borderColor: 'var(--border)' }}>
-            <button
-              onClick={() => { setShowEdit(true); setShowMenu(false) }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50"
-            >
-              <Pencil size={14} /> Edit
-            </button>
+            {task.user_id === profile?.id && (
+              <button
+                onClick={() => { setShowEdit(true); setShowMenu(false) }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50"
+              >
+                <Pencil size={14} /> Edit
+              </button>
+            )}
             <button
               onClick={() => { pinTask(isPinned ? null : task.id); setShowMenu(false) }}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50"
@@ -215,13 +217,15 @@ function TaskCard({ task }: { task: Task }) {
               {isPinned ? <PinOff size={14} /> : <Pin size={14} />}
               {isPinned ? 'Stop working on' : 'Work on this'}
             </button>
-            <button
-              onClick={() => { deleteTask(task.id); setShowMenu(false) }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50"
-              style={{ color: '#EF4444' }}
-            >
-              <Trash2 size={14} /> Delete
-            </button>
+            {task.user_id === profile?.id && (
+              <button
+                onClick={() => { deleteTask(task.id); setShowMenu(false) }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50"
+                style={{ color: '#EF4444' }}
+              >
+                <Trash2 size={14} /> Delete
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -233,11 +237,15 @@ function TaskCard({ task }: { task: Task }) {
 }
 
 export default function TasksSection() {
-  const { tasks, updateTask } = useApp()
+  const { tasks, updateTask, user } = useApp()
   const [showAdd, setShowAdd] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
-  const myTasks = tasks.filter(t => !t.assigned_to || t.assignment_status === 'accepted')
+  const myTasks = tasks.filter(t =>
+    t.user_id === user?.id ||
+    (t.assigned_to === user?.id && t.assignment_status === 'accepted') ||
+    (t.project_id && t.user_id !== user?.id)
+  )
   const activeTasks = myTasks.filter(t => !t.done)
   const doneTasks = myTasks.filter(t => t.done)
 
