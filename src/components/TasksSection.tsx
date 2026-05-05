@@ -241,9 +241,14 @@ export default function TasksSection() {
   const [showAdd, setShowAdd] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
+  // Show all tasks owned by user or accepted assignments
   const myTasks = tasks.filter(t => !t.assigned_to || t.assignment_status === 'accepted')
   const activeTasks = myTasks.filter(t => !t.done)
   const doneTasks = myTasks.filter(t => t.done)
+
+  // Diagnostic: tasks loaded from DB vs visible after filter
+  const rawCount = tasks.length
+  const visibleCount = myTasks.length
 
   async function clearFinished() {
     for (const t of doneTasks) await updateTask(t.id, { done: false })
@@ -262,9 +267,16 @@ export default function TasksSection() {
 
         <div className="card p-3 flex flex-col gap-2">
           {myTasks.length === 0 ? (
-            <p className="text-center py-6 text-sm" style={{ color: 'var(--muted)' }}>
-              No tasks yet — add one to get started
-            </p>
+            <div className="text-center py-6">
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                No tasks yet — add one to get started
+              </p>
+              {rawCount > 0 && (
+                <p className="text-xs mt-1" style={{ color: '#EF4444' }}>
+                  ({rawCount} tasks loaded from DB but filtered out — all have assigned_to set)
+                </p>
+              )}
+            </div>
           ) : (
             <>
               {activeTasks.map(t => <TaskCard key={t.id} task={t} />)}
