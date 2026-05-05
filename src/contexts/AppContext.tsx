@@ -69,6 +69,26 @@ function getDurationForMode(mode: TimerMode, settings: UserSettings): number {
   return settings.long_break * 60
 }
 
+function playNotificationRing() {
+  try {
+    const ctx = new AudioContext()
+    const notes = [523, 659, 784]
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.14)
+      gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.14)
+      gain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + i * 0.14 + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.14 + 0.5)
+      osc.start(ctx.currentTime + i * 0.14)
+      osc.stop(ctx.currentTime + i * 0.14 + 0.5)
+    })
+  } catch {}
+}
+
 function playAlarm() {
   try {
     const ctx = new AudioContext()
@@ -155,6 +175,7 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
         const msg = `New task assigned to you: "${task.title ?? 'Untitled'}"`
         const id = crypto.randomUUID()
         setNotifications(prev => [...prev, { id, message: msg }])
+        playNotificationRing()
         if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
           new Notification('LockIn', { body: msg, icon: '/favicon.svg' })
         }
