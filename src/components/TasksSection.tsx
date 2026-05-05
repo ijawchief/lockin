@@ -45,6 +45,14 @@ function TaskCard({ task }: { task: Task }) {
   // Time spent on task: completed pomos × pomo duration
   const timeSpentMins = task.completed_pomos * settings.pomo_duration
 
+  // Due date helpers
+  const todayStr = new Date().toISOString().split('T')[0]
+  const dueDateColor = task.due_date
+    ? task.due_date < todayStr ? { bg: '#FEE2E2', color: '#EF4444', label: '⚠ ' }
+    : task.due_date === todayStr ? { bg: '#FEF3C7', color: '#D97706', label: '📅 ' }
+    : { bg: 'var(--border)', color: 'var(--muted)', label: '📅 ' }
+    : null
+
   // Is the assignee currently working on this task?
   const assigneePresence = task.assigned_to
     ? Object.values(presence).find(p => p.user_id === task.assigned_to && p.task_id === task.id)
@@ -112,6 +120,14 @@ function TaskCard({ task }: { task: Task }) {
           <span className="text-xs" style={{ color: 'var(--muted)' }}>
             🍅 {task.completed_pomos}/{task.estimated_pomos}
           </span>
+
+          {/* Due date */}
+          {dueDateColor && !task.done && (
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+              style={{ background: dueDateColor.bg, color: dueDateColor.color }}>
+              {dueDateColor.label}{new Date(task.due_date + 'T00:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric' })}
+            </span>
+          )}
 
           {/* Assignee */}
           {task.assignee_profile && (

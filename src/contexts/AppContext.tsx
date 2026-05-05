@@ -15,6 +15,11 @@ export interface PresenceUser {
   is_running: boolean
 }
 
+export interface AppNotification {
+  id: string
+  message: string
+}
+
 interface AppState {
   user: User | null
   profile: Profile | null
@@ -23,6 +28,7 @@ interface AppState {
   sessions: Session[]
   settings: UserSettings
   presence: Record<string, PresenceUser>
+  notifications: AppNotification[]
   // timer
   mode: TimerMode
   timeLeft: number
@@ -52,6 +58,7 @@ interface AppState {
   acceptTask: (taskId: string) => Promise<void>
   declineTask: (taskId: string) => Promise<void>
   logSession: () => Promise<void>
+  dismissNotification: (id: string) => void
 }
 
 const AppContext = createContext<AppState | null>(null)
@@ -88,6 +95,7 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
   const [sessions, setSessions] = useState<Session[]>([])
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS)
   const [presence, setPresence] = useState<Record<string, PresenceUser>>({})
+  const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [mode, setModeState] = useState<TimerMode>('pomodoro')
   const [timeLeft, setTimeLeft] = useState(25 * 60)
   const [isRunning, setIsRunning] = useState(false)
@@ -98,6 +106,7 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
+  const notifChannelRef = useRef<RealtimeChannel | null>(null)
   const settingsRef = useRef(settings)
   settingsRef.current = settings
   const profileRef = useRef(profile)
@@ -126,7 +135,38 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
     loadSettings()
     refreshSessions()
     setupPresence()
-    return () => { channelRef.current?.unsubscribe() }
+
+    // Request browser notification permission
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+
+    // Subscribe to task assignments in real-time
+    notifChannelRef.current?.unsubscribe()
+    const notifCh = supabase
+      .channel(`task-notifs-${user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'tasks',
+        filter: `assigned_to=eq.${user.id}`,
+      }, payload => {
+        const task = payload.new as { title?: string }
+        const msg = `New task assigned to you: "${task.title ?? 'Untitled'}"`
+        const id = crypto.randomUUID()
+        setNotifications(prev => [...prev, { id, message: msg }])
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          new Notification('LockIn', { body: msg, icon: '/favicon.svg' })
+        }
+        loadTasks()
+      })
+      .subscribe()
+    notifChannelRef.current = notifCh
+
+    return () => {
+      channelRef.current?.unsubscribe()
+      notifChannelRef.current?.unsubscribe()
+    }
   }, [user?.id])
 
   // Broadcast presence when timer state changes
@@ -190,13 +230,11 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
 
   async function loadProjects() {
     if (!user) return
-    // Fetch owned projects
     const { data: owned } = await supabase
       .from('projects')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at')
-    // Fetch project IDs where user is a member
     const { data: memberships } = await supabase
       .from('project_members')
       .select('project_id')
@@ -211,7 +249,6 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
         .order('created_at')
       memberProjects = data ?? []
     }
-    // Merge, dedupe by id
     const all = [...(owned ?? []), ...memberProjects]
     const seen = new Set<string>()
     setProjects(all.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true }))
@@ -332,6 +369,10 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
     pinnedRef.current = id
   }
 
+  function dismissNotification(id: string) {
+    setNotifications(prev => prev.filter(n => n.id !== id))
+  }
+
   async function addTask(taskData: Partial<Task>) {
     if (!user) return
     const temp: Task = {
@@ -347,6 +388,7 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
       assigned_to: taskData.assigned_to ?? null,
       assigned_by: taskData.assigned_by ?? null,
       assignment_status: taskData.assigned_to ? 'pending' : null,
+      due_date: taskData.due_date ?? null,
       created_at: new Date().toISOString(),
       project: projects.find(p => p.id === taskData.project_id) ?? null,
       assignee_profile: null,
@@ -361,6 +403,7 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
       assigned_to: temp.assigned_to,
       assigned_by: temp.assigned_by,
       assignment_status: temp.assignment_status,
+      due_date: temp.due_date,
     }).select('*, project:projects(*), assignee_profile:profiles!tasks_assigned_to_fkey(*)').single()
     if (error) { setTasks(prev => prev.filter(t => t.id !== temp.id)); return }
     setTasks(prev => prev.map(t => t.id === temp.id ? data : t))
@@ -427,7 +470,7 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
 
   return (
     <AppContext.Provider value={{
-      user, profile, tasks, projects, sessions, settings, presence,
+      user, profile, tasks, projects, sessions, settings, presence, notifications,
       mode, timeLeft, isRunning, pomosToday, cycleCount, pinnedTaskId,
       activeTab, setActiveTab,
       setMode, startStop, reset, skip, pinTask,
@@ -435,6 +478,7 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
       addProject, deleteProject, addProjectMember, removeProjectMember,
       updateSettings, updateProfile, refreshSessions,
       acceptTask, declineTask, logSession,
+      dismissNotification,
     }}>
       {children}
     </AppContext.Provider>

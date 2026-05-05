@@ -8,7 +8,7 @@ import type { Task, Profile } from '@/lib/types'
 
 interface Props {
   onClose: () => void
-  task?: Task  // if provided, we're editing
+  task?: Task
 }
 
 export default function AddTaskModal({ onClose, task }: Props) {
@@ -19,6 +19,7 @@ export default function AddTaskModal({ onClose, task }: Props) {
   const [notes, setNotes] = useState(task?.notes ?? '')
   const [estimatedPomos, setEstimatedPomos] = useState(task?.estimated_pomos ?? 1)
   const [projectId, setProjectId] = useState<string | null>(task?.project_id ?? null)
+  const [dueDate, setDueDate] = useState(task?.due_date ?? '')
   const [assignee, setAssignee] = useState<Profile | null>(null)
   const [assignSearch, setAssignSearch] = useState('')
   const [searchResults, setSearchResults] = useState<Profile[]>([])
@@ -48,6 +49,7 @@ export default function AddTaskModal({ onClose, task }: Props) {
         notes,
         estimated_pomos: estimatedPomos,
         project_id: projectId,
+        due_date: dueDate || null,
         ...(assignee ? {
           assigned_to: assignee.id,
           assigned_by: user?.id,
@@ -60,6 +62,7 @@ export default function AddTaskModal({ onClose, task }: Props) {
         notes,
         estimated_pomos: estimatedPomos,
         project_id: projectId,
+        due_date: dueDate || null,
         ...(assignee ? {
           assigned_to: assignee.id,
           assigned_by: user?.id,
@@ -70,6 +73,8 @@ export default function AddTaskModal({ onClose, task }: Props) {
     setSaving(false)
     onClose()
   }
+
+  const today = new Date().toISOString().split('T')[0]
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -97,23 +102,35 @@ export default function AddTaskModal({ onClose, task }: Props) {
             onChange={e => setNotes(e.target.value)}
           />
 
-          {/* Estimated pomos */}
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>Estimated Pomos</span>
-            <div className="flex items-center gap-2">
-              <button
-                className="btn-ghost w-8 h-8 flex items-center justify-center p-0"
-                onClick={() => setEstimatedPomos(p => Math.max(1, p - 1))}
-              >
-                <ChevronDown size={16} />
-              </button>
-              <span className="w-6 text-center font-semibold">{estimatedPomos}</span>
-              <button
-                className="btn-ghost w-8 h-8 flex items-center justify-center p-0"
-                onClick={() => setEstimatedPomos(p => Math.min(20, p + 1))}
-              >
-                <ChevronUp size={16} />
-              </button>
+          {/* Due date + Pomos row */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-1 flex-1">
+              <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Due Date</span>
+              <input
+                type="date"
+                className="input text-sm"
+                value={dueDate}
+                min={today}
+                onChange={e => setDueDate(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1 items-center">
+              <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Pomos</span>
+              <div className="flex items-center gap-1">
+                <button
+                  className="btn-ghost w-8 h-8 flex items-center justify-center p-0"
+                  onClick={() => setEstimatedPomos(p => Math.max(1, p - 1))}
+                >
+                  <ChevronDown size={16} />
+                </button>
+                <span className="w-6 text-center font-semibold">{estimatedPomos}</span>
+                <button
+                  className="btn-ghost w-8 h-8 flex items-center justify-center p-0"
+                  onClick={() => setEstimatedPomos(p => Math.min(20, p + 1))}
+                >
+                  <ChevronUp size={16} />
+                </button>
+              </div>
             </div>
           </div>
 

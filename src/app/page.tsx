@@ -16,6 +16,7 @@ import ReportsView from '@/components/ReportsView'
 import SettingsView from '@/components/SettingsView'
 import InboxView from '@/components/InboxView'
 import ProfileSheet from '@/components/ProfileSheet'
+import ToastNotification from '@/components/ToastNotification'
 
 function AppContent() {
   const { activeTab } = useApp()
@@ -41,6 +42,7 @@ function AppContent() {
       <BottomNav />
 
       {showProfile && <ProfileSheet onClose={() => setShowProfile(false)} />}
+      <ToastNotification />
     </div>
   )
 }
