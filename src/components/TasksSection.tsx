@@ -237,7 +237,7 @@ function TaskCard({ task }: { task: Task }) {
 }
 
 export default function TasksSection() {
-  const { tasks, updateTask } = useApp()
+  const { tasks, updateTask, user } = useApp()
   const [showAdd, setShowAdd] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
@@ -246,9 +246,7 @@ export default function TasksSection() {
   const activeTasks = myTasks.filter(t => !t.done)
   const doneTasks = myTasks.filter(t => t.done)
 
-  // Diagnostic: tasks loaded from DB vs visible after filter
   const rawCount = tasks.length
-  const visibleCount = myTasks.length
 
   async function clearFinished() {
     for (const t of doneTasks) await updateTask(t.id, { done: false })
@@ -273,9 +271,12 @@ export default function TasksSection() {
               </p>
               {rawCount > 0 && (
                 <p className="text-xs mt-1" style={{ color: '#EF4444' }}>
-                  ({rawCount} tasks loaded from DB but filtered out — all have assigned_to set)
+                  ({rawCount} tasks loaded but filtered — all have assigned_to set)
                 </p>
               )}
+              <p className="text-xs mt-2 font-mono break-all px-2" style={{ color: '#9CA3AF' }}>
+                uid: {user?.id ?? 'null'}
+              </p>
             </div>
           ) : (
             <>
