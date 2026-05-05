@@ -250,11 +250,12 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
 
   async function loadTasks() {
     if (!user) return
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('tasks')
       .select('*, project:projects(*), assignee_profile:profiles!tasks_assigned_to_fkey(*)')
       .or(`user_id.eq.${user.id},assigned_to.eq.${user.id}`)
       .order('created_at', { ascending: false })
+    if (error) console.error('[loadTasks]', error)
     if (data) setTasks(data)
   }
 

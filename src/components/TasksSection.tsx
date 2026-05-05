@@ -237,14 +237,11 @@ function TaskCard({ task }: { task: Task }) {
 }
 
 export default function TasksSection() {
-  const { tasks, updateTask, user } = useApp()
+  const { tasks, updateTask } = useApp()
   const [showAdd, setShowAdd] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
-  const myTasks = tasks.filter(t =>
-    t.user_id === user?.id ||
-    (t.assigned_to === user?.id && t.assignment_status === 'accepted')
-  )
+  const myTasks = tasks.filter(t => !t.assigned_to || t.assignment_status === 'accepted')
   const activeTasks = myTasks.filter(t => !t.done)
   const doneTasks = myTasks.filter(t => t.done)
 
