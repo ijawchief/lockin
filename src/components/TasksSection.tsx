@@ -243,8 +243,7 @@ export default function TasksSection() {
 
   const myTasks = tasks.filter(t =>
     t.user_id === user?.id ||
-    (t.assigned_to === user?.id && t.assignment_status === 'accepted') ||
-    (t.project_id && t.user_id !== user?.id)
+    (t.assigned_to === user?.id && t.assignment_status === 'accepted')
   )
   const activeTasks = myTasks.filter(t => !t.done)
   const doneTasks = myTasks.filter(t => t.done)

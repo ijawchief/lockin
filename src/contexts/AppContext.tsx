@@ -250,33 +250,12 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
 
   async function loadTasks() {
     if (!user) return
-    // Own tasks + tasks assigned to user
-    const { data: ownTasks } = await supabase
+    const { data } = await supabase
       .from('tasks')
       .select('*, project:projects(*), assignee_profile:profiles!tasks_assigned_to_fkey(*)')
       .or(`user_id.eq.${user.id},assigned_to.eq.${user.id}`)
       .order('created_at', { ascending: false })
-
-    // Tasks from projects the user is a member of (but didn't create)
-    const { data: memberships } = await supabase
-      .from('project_members')
-      .select('project_id')
-      .eq('user_id', user.id)
-    const memberProjectIds = (memberships ?? []).map(m => m.project_id)
-    let projectTasks: typeof ownTasks = []
-    if (memberProjectIds.length > 0) {
-      const { data } = await supabase
-        .from('tasks')
-        .select('*, project:projects(*), assignee_profile:profiles!tasks_assigned_to_fkey(*)')
-        .in('project_id', memberProjectIds)
-        .order('created_at', { ascending: false })
-      projectTasks = data ?? []
-    }
-
-    // Merge and dedupe by id
-    const all = [...(ownTasks ?? []), ...projectTasks]
-    const seen = new Set<string>()
-    setTasks(all.filter(t => { if (seen.has(t.id)) return false; seen.add(t.id); return true }))
+    if (data) setTasks(data)
   }
 
   async function loadProjects() {
