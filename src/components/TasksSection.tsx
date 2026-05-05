@@ -152,8 +152,8 @@ function TaskCard({ task }: { task: Task }) {
           </div>
         )}
 
-        {/* Assignee status row */}
-        {task.assignee_profile && (
+        {/* Assignee working status — shown inline only when actively working */}
+        {task.assignee_profile && assigneePresence?.is_running && (
           <div className="mt-2 flex items-center gap-2 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
             <Avatar
               name={task.assignee_profile.name}
@@ -163,14 +163,8 @@ function TaskCard({ task }: { task: Task }) {
             <span className="text-xs font-medium" style={{ color: 'var(--text)' }}>
               {task.assignee_profile.name}
             </span>
-            {assigneePresence?.is_running ? (
-              <>
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-xs text-green-600 font-medium">Working now</span>
-              </>
-            ) : (
-              <span className="text-xs" style={{ color: 'var(--muted)' }}>assigned</span>
-            )}
+            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-xs text-green-600 font-medium">Working now</span>
             {timeSpentMins > 0 && (
               <span className="text-xs ml-auto" style={{ color: 'var(--muted)' }}>
                 {formatTime(timeSpentMins)} spent
