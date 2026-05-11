@@ -12,8 +12,8 @@ const tabs = [
 ] as const
 
 export default function BottomNav() {
-  const { activeTab, setActiveTab, tasks } = useApp()
-  const inboxCount = tasks.filter(t => t.assignment_status === 'pending' && t.assigned_to).length
+  const { activeTab, setActiveTab, tasks, user } = useApp()
+  const inboxCount = tasks.filter(t => t.assignment_status === 'pending' && t.assigned_to === user?.id).length
 
   return (
     <nav className="bottom-nav">
