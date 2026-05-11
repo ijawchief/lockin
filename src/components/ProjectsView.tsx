@@ -81,6 +81,7 @@ function MembersModal({ project, onClose }: { project: Project; onClose: () => v
   const [searching, setSearching] = useState(false)
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [loaded, setLoaded] = useState(false)
 
   if (!loaded) {
@@ -119,8 +120,8 @@ function MembersModal({ project, onClose }: { project: Project; onClose: () => v
     setSearch('')
     setSearchResults([])
     setAdding(false)
-    setError('✓ ' + profile.name + ' added successfully')
-    setTimeout(() => setError(''), 3000)
+    setSuccess(profile.name + ' added successfully')
+    setTimeout(() => setSuccess(''), 3000)
   }
 
   async function handleRemove(memberId: string) {
@@ -185,11 +186,8 @@ function MembersModal({ project, onClose }: { project: Project; onClose: () => v
           <p className="text-xs mb-3 px-1" style={{ color: 'var(--muted)' }}>Keep typing…</p>
         )}
 
-        {error && (
-          <p className="text-sm mb-3" style={{ color: error.startsWith('✓') ? '#16A34A' : '#EF4444' }}>
-            {error}
-          </p>
-        )}
+        {error && <p className="text-sm mb-3" style={{ color: '#EF4444' }}>{error}</p>}
+        {success && <p className="text-sm mb-3" style={{ color: '#16A34A' }}>✓ {success}</p>}
 
         <p className="text-xs font-semibold uppercase tracking-wide mb-2 mt-3" style={{ color: 'var(--muted)' }}>
           {members.length} member{members.length !== 1 ? 's' : ''}
