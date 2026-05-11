@@ -438,9 +438,18 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
       assignment_status: temp.assignment_status,
       due_date: temp.due_date,
     }).select('*, project:projects(*), assignee_profile:profiles!tasks_assigned_to_fkey(*)').single()
-    if (error) { setTasks(prev => prev.filter(t => t.id !== temp.id)); return }
-    setTasks(prev => prev.map(t => t.id === temp.id ? data : t))
+    if (error) {
+  console.error('[addTask]', error)
+  setTasks(prev => prev.filter(t => t.id !== temp.id)) // only roll back on hard error
+  return
+}
+console.log('[addTask] error:', error)   // ← add this
+console.log('[addTask] data:', data)
+if (data) {
+  setTasks(prev => prev.map(t => t.id === temp.id ? data : t)) // swap temp for real record
+}
   }
+
 
   async function updateTask(id: string, updates: Partial<Task>) {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t))
@@ -454,10 +463,31 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
   }
 
   async function addProject(name: string, color: string) {
-    if (!user) return
-    const { data } = await supabase.from('projects').insert({ user_id: user.id, name, color }).select('*').single()
-    if (data) setProjects(prev => [...prev, data])
+  if (!user) return
+  // Optimistic update
+  const temp = {
+    id: crypto.randomUUID(),
+    user_id: user.id,
+    name,
+    color,
+    created_at: new Date().toISOString(),
   }
+  setProjects(prev => [...prev, temp])
+
+  const { data, error } = await supabase
+    .from('projects')
+    .insert({ user_id: user.id, name, color })
+    .select('*')
+    .single()
+
+  if (error || !data) {
+    // Roll back on failure
+    setProjects(prev => prev.filter(p => p.id !== temp.id))
+    return
+  }
+  // Replace temp with real record (gets the real DB-generated id)
+  setProjects(prev => prev.map(p => p.id === temp.id ? data : p))
+}
 
   async function deleteProject(id: string) {
     setProjects(prev => prev.filter(p => p.id !== id))
@@ -521,5 +551,5 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
 export function useApp() {
   const ctx = useContext(AppContext)
   if (!ctx) throw new Error('useApp must be used within AppProvider')
-  return ctx
+  return ctx;
 }
