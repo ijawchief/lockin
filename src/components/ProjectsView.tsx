@@ -121,7 +121,7 @@ function MembersModal({ project, onClose }: { project: Project; onClose: () => v
     setSearchResults([])
     setAdding(false)
     setSuccess(profile.name + ' added successfully')
-    setTimeout(() => setSuccess(''), 3000)
+    setTimeout(() => setSuccess(''), 5000)
   }
 
   async function handleRemove(memberId: string) {
@@ -187,7 +187,12 @@ function MembersModal({ project, onClose }: { project: Project; onClose: () => v
         )}
 
         {error && <p className="text-sm mb-3" style={{ color: '#EF4444' }}>{error}</p>}
-        {success && <p className="text-sm mb-3" style={{ color: '#16A34A' }}>✓ {success}</p>}
+        {success && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl mb-3" style={{ background: '#DCFCE7' }}>
+            <span style={{ color: '#16A34A', fontSize: 16 }}>✓</span>
+            <p className="text-sm font-medium" style={{ color: '#16A34A' }}>{success}</p>
+          </div>
+        )}
 
         <p className="text-xs font-semibold uppercase tracking-wide mb-2 mt-3" style={{ color: 'var(--muted)' }}>
           {members.length} member{members.length !== 1 ? 's' : ''}

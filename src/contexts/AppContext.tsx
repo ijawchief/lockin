@@ -173,7 +173,20 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
         schema: 'public',
         table: 'project_members',
         filter: `user_id=eq.${user.id}`,
-      }, () => {
+      }, async payload => {
+        const pm = payload.new as { project_id?: string }
+        let projectName = 'a project'
+        if (pm.project_id) {
+          const { data } = await supabase.from('projects').select('name').eq('id', pm.project_id).single()
+          if (data?.name) projectName = `"${data.name}"`
+        }
+        const msg = `You've been added to ${projectName}`
+        const id = crypto.randomUUID()
+        setNotifications(prev => [...prev, { id, message: msg }])
+        playNotificationRing()
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          new Notification('LockIn', { body: msg, icon: '/favicon.svg' })
+        }
         loadProjects()
         loadTasks()
       })
