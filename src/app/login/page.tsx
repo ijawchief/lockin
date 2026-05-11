@@ -41,7 +41,7 @@ export default function LoginPage() {
         await supabase.from('settings').insert({ user_id: data.user.id })
       }
     }
-    router.push('/')
+    router.push('/app')
     router.refresh()
     setLoading(false)
   }
@@ -49,7 +49,7 @@ export default function LoginPage() {
   async function handleGoogle() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${location.origin}/` },
+      options: { redirectTo: `${location.origin}/app` },
     })
   }
 
