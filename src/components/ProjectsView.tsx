@@ -119,6 +119,8 @@ function MembersModal({ project, onClose }: { project: Project; onClose: () => v
     setSearch('')
     setSearchResults([])
     setAdding(false)
+    setError('✓ ' + profile.name + ' added successfully')
+    setTimeout(() => setError(''), 3000)
   }
 
   async function handleRemove(memberId: string) {
@@ -183,7 +185,11 @@ function MembersModal({ project, onClose }: { project: Project; onClose: () => v
           <p className="text-xs mb-3 px-1" style={{ color: 'var(--muted)' }}>Keep typing…</p>
         )}
 
-        {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
+        {error && (
+          <p className="text-sm mb-3" style={{ color: error.startsWith('✓') ? '#16A34A' : '#EF4444' }}>
+            {error}
+          </p>
+        )}
 
         <p className="text-xs font-semibold uppercase tracking-wide mb-2 mt-3" style={{ color: 'var(--muted)' }}>
           {members.length} member{members.length !== 1 ? 's' : ''}
