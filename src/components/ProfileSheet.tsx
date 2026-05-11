@@ -25,6 +25,8 @@ function EditProfileModal({ onClose }: { onClose: () => void }) {
   const [instagram, setInstagram] = useState(profile?.instagram ?? '')
   const [website, setWebsite] = useState(profile?.website ?? '')
   const [saving, setSaving] = useState(false)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const [avatarError, setAvatarError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function handleSave() {
@@ -37,13 +39,18 @@ function EditProfileModal({ onClose }: { onClose: () => void }) {
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file || !profile) return
+    setAvatarUploading(true)
+    setAvatarError('')
     const ext = file.name.split('.').pop()
-    const path = `avatars/${profile.id}.${ext}`
+    const path = `${profile.id}.${ext}`
     const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
-    if (!error) {
+    if (error) {
+      setAvatarError('Upload failed — make sure the "avatars" storage bucket exists in Supabase')
+    } else {
       const { data } = supabase.storage.from('avatars').getPublicUrl(path)
       await updateProfile({ avatar_url: data.publicUrl })
     }
+    setAvatarUploading(false)
   }
 
   return (
@@ -70,9 +77,12 @@ function EditProfileModal({ onClose }: { onClose: () => void }) {
               </span>
             )}
           </div>
-          <button className="btn-ghost px-3 py-2 text-sm" onClick={() => fileRef.current?.click()}>
-            Change photo
-          </button>
+          <div className="flex flex-col gap-1">
+            <button className="btn-ghost px-3 py-2 text-sm" onClick={() => fileRef.current?.click()} disabled={avatarUploading}>
+              {avatarUploading ? 'Uploading...' : 'Change photo'}
+            </button>
+            {avatarError && <p className="text-xs px-1" style={{ color: '#EF4444' }}>{avatarError}</p>}
+          </div>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
         </div>
 

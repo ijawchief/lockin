@@ -92,18 +92,21 @@ function playNotificationRing() {
 function playAlarm() {
   try {
     const ctx = new AudioContext()
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(880, ctx.currentTime)
-    osc.frequency.setValueAtTime(660, ctx.currentTime + 0.2)
-    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.4)
-    gain.gain.setValueAtTime(0.3, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8)
-    osc.start()
-    osc.stop(ctx.currentTime + 0.8)
+    // Three loud beeps
+    for (let i = 0; i < 3; i++) {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.type = 'square'
+      osc.frequency.setValueAtTime(880, ctx.currentTime + i * 0.4)
+      gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.4)
+      gain.gain.linearRampToValueAtTime(0.8, ctx.currentTime + i * 0.4 + 0.01)
+      gain.gain.setValueAtTime(0.8, ctx.currentTime + i * 0.4 + 0.25)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.4 + 0.35)
+      osc.start(ctx.currentTime + i * 0.4)
+      osc.stop(ctx.currentTime + i * 0.4 + 0.35)
+    }
   } catch {}
 }
 
