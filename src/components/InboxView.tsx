@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Check, X } from 'lucide-react'
+import { Check, X, Trash2 } from 'lucide-react'
 import { useApp } from '@/contexts/AppContext'
 import { supabase } from '@/lib/supabase'
+import { getLevel, LEVEL_CONFIG } from '@/lib/types'
 import type { Profile } from '@/lib/types'
 
 function timeAgo(dateStr: string) {
@@ -23,31 +24,92 @@ type ActivityItem = {
   icon: string
   text: string
   time: string
-  date: string   // ISO for sorting
+  date: string
   unread: boolean
+}
+
+function LevelCard() {
+  const { sessions, profile } = useApp()
+  const total = sessions.length
+  const level = getLevel(total)
+  const levelIdx = LEVEL_CONFIG.findIndex(l => l.name === level.name)
+  const next = LEVEL_CONFIG[levelIdx + 1]
+  const progress = next
+    ? ((total - level.min) / (level.max - level.min)) * 100
+    : 100
+  const streak = profile?.streak ?? 0
+
+  return (
+    <div className="card p-4 mb-5" style={{ background: 'linear-gradient(135deg, #1A1A2E 0%, #16213E 100%)', border: 'none' }}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <div className="text-3xl">{level.emoji}</div>
+          <div>
+            <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--primary)' }}>{level.name}</p>
+            <p className="text-sm font-semibold" style={{ color: 'white' }}>
+              {total} session{total !== 1 ? 's' : ''}
+              {next && <span style={{ color: '#6B7280' }}> / {next.min} to {next.name}</span>}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl" style={{ background: 'rgba(232,101,74,0.15)', border: '1px solid rgba(232,101,74,0.25)' }}>
+          <span style={{ fontSize: 16 }}>🔥</span>
+          <span className="font-bold text-sm" style={{ color: '#E8654A' }}>{streak}</span>
+          <span className="text-xs" style={{ color: '#9CA3AF' }}>day streak</span>
+        </div>
+      </div>
+
+      {/* XP bar */}
+      <div>
+        <div className="flex justify-between mb-1">
+          <span className="text-xs" style={{ color: '#6B7280' }}>XP Progress</span>
+          {next && <span className="text-xs" style={{ color: '#6B7280' }}>{next.min - total} sessions to {next.name} {next.emoji}</span>}
+        </div>
+        <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 99 }}>
+          <div style={{
+            height: '100%', borderRadius: 99,
+            width: `${Math.min(progress, 100)}%`,
+            background: 'linear-gradient(90deg, var(--primary), #F97316)',
+            transition: 'width 0.6s ease',
+            boxShadow: '0 0 8px rgba(232,101,74,0.5)',
+          }} />
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function InboxView() {
   const { tasks, acceptTask, declineTask, user } = useApp()
   const pendingTasks = tasks.filter(t => t.assigned_to === user?.id && t.assignment_status === 'pending')
 
-  // Snapshot lastSeen at mount so items appear unread on this visit,
-  // then bump it so next visit they're read
+  // Unread tracking
   const lastSeenRef = useRef<number>(
     typeof window !== 'undefined' ? Number(localStorage.getItem('inbox_last_seen') || 0) : 0
   )
   useEffect(() => {
-    const now = Date.now()
-    localStorage.setItem('inbox_last_seen', String(now))
+    localStorage.setItem('inbox_last_seen', String(Date.now()))
   }, [])
 
+  // Clear activity tracking
+  const [clearedBefore, setClearedBefore] = useState<number>(() =>
+    typeof window !== 'undefined' ? Number(localStorage.getItem('inbox_cleared_before') || 0) : 0
+  )
+  function clearActivity() {
+    const now = Date.now()
+    localStorage.setItem('inbox_cleared_before', String(now))
+    setClearedBefore(now)
+  }
+
   const [assignerProfiles, setAssignerProfiles] = useState<Record<string, Profile>>({})
-  const [memberships, setMemberships] = useState<Array<{ created_at: string; project_id: string; project_name: string; owner_name: string }>>([])
+  const [memberships, setMemberships] = useState<Array<{
+    created_at: string; project_id: string; project_name: string; owner_name: string
+  }>>([])
 
   useEffect(() => {
     if (!user) return
 
-    // Fetch profiles for anyone who assigned a task to me
+    // Assigner profiles for tasks assigned to me
     const ids = [...new Set(
       tasks
         .filter(t => t.assigned_to === user.id && t.assigned_by && t.assigned_by !== user.id)
@@ -63,7 +125,7 @@ export default function InboxView() {
       })
     }
 
-    // Fetch project memberships (projects I was added to)
+    // Project memberships
     supabase
       .from('project_members')
       .select('created_at, project_id, projects(name, user_id, profiles!projects_user_id_fkey(name))')
@@ -83,8 +145,8 @@ export default function InboxView() {
   }, [user, tasks])
 
   // Build activity feed
-  const items: ActivityItem[] = []
   const ls = lastSeenRef.current
+  const items: ActivityItem[] = []
 
   // Tasks assigned TO me
   tasks
@@ -92,7 +154,6 @@ export default function InboxView() {
     .forEach(t => {
       const assignerName = t.assigned_by ? (assignerProfiles[t.assigned_by]?.name ?? '...') : 'Someone'
       const unread = new Date(t.created_at).getTime() > ls
-
       if (t.assignment_status === 'pending') {
         items.push({ id: `pending-${t.id}`, icon: '📋', text: `${assignerName} assigned you "${t.title}"`, time: timeAgo(t.created_at), date: t.created_at, unread })
       } else if (t.assignment_status === 'accepted') {
@@ -108,7 +169,6 @@ export default function InboxView() {
     .forEach(t => {
       const assigneeName = t.assignee_profile?.name ?? 'Someone'
       const unread = new Date(t.created_at).getTime() > ls
-
       if (t.assignment_status === 'accepted') {
         items.push({ id: `theyaccepted-${t.id}`, icon: '✅', text: `${assigneeName} accepted "${t.title}"`, time: timeAgo(t.created_at), date: t.created_at, unread })
       } else if (t.assignment_status === 'declined') {
@@ -124,11 +184,11 @@ export default function InboxView() {
     items.push({ id: `project-${m.project_id}`, icon: '👥', text: `${m.owner_name} added you to "${m.project_name}"`, time: timeAgo(m.created_at), date: m.created_at, unread })
   })
 
-  // Sort newest first
-  items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-
-  // Deduplicate pending tasks from the activity list (they show in "Action Required" above)
-  const activityItems = items.filter(i => !i.id.startsWith('pending-'))
+  // Sort newest first, filter cleared items, filter pending (shown above)
+  const activityItems = items
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .filter(i => !i.id.startsWith('pending-'))
+    .filter(i => new Date(i.date).getTime() > clearedBefore)
 
   return (
     <div className="scroll-area px-4 pt-4">
@@ -141,6 +201,9 @@ export default function InboxView() {
           </div>
         )}
       </div>
+
+      {/* ── Level Card ── */}
+      <LevelCard />
 
       {/* ── Action Required ── */}
       {pendingTasks.length > 0 && (
@@ -187,9 +250,21 @@ export default function InboxView() {
 
       {/* ── Activity Feed ── */}
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--muted)' }}>
-          Activity
-        </p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
+            Activity
+          </p>
+          {activityItems.length > 0 && (
+            <button
+              onClick={clearActivity}
+              className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg"
+              style={{ color: 'var(--muted)', background: 'var(--border)' }}
+            >
+              <Trash2 size={11} /> Clear
+            </button>
+          )}
+        </div>
+
         {activityItems.length === 0 ? (
           <div className="card p-8 flex flex-col items-center gap-3">
             <div className="text-4xl">📥</div>
