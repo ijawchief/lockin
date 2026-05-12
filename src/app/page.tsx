@@ -265,7 +265,7 @@ export default function LandingPage() {
       <section style={{ background: '#F8F9FA', padding: '96px 24px' }}>
         <div style={{ maxWidth: 720, margin: '0 auto', textAlign: 'center' }}>
           <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 800, color: 'var(--text)', marginBottom: 16, letterSpacing: '-0.02em' }}>
-            LockIn HQ gives your team<br />one place to execute.
+            LockIn gives your team<br />one place to execute.
           </h2>
           <p style={{ color: '#6B7280', fontSize: 18, marginBottom: 48 }}>
             Your tasks, focus sessions, and team activity — all in one lightweight workspace.
@@ -375,7 +375,7 @@ export default function LandingPage() {
           </h2>
           <p style={{ color: '#6B7280', fontSize: 18, lineHeight: 1.7, marginBottom: 48 }}>
             Most tools optimize <em>organization</em>.<br />
-            LockIn HQ optimizes <strong style={{ color: 'var(--text)' }}>execution.</strong>
+            LockIn optimizes <strong style={{ color: 'var(--text)' }}>execution.</strong>
           </p>
           <p style={{ color: 'var(--text)', fontWeight: 600, fontSize: 16, marginBottom: 24 }}>Because deep work happens when teams can:</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 400, margin: '0 auto' }}>
@@ -436,7 +436,7 @@ export default function LandingPage() {
           </div>
         </div>
         <div style={{ maxWidth: 1120, margin: '24px auto 0', borderTop: '1px solid #1F2937', paddingTop: 24, textAlign: 'center' }}>
-          <p style={{ color: '#4B5563', fontSize: 12, margin: 0 }}>© 2026 LockIn HQ. All rights reserved.</p>
+          <p style={{ color: '#4B5563', fontSize: 12, margin: 0 }}>© 2026 LockIn. All rights reserved.</p>
         </div>
       </footer>
 
