@@ -296,44 +296,183 @@ export default function LandingPage() {
             </h2>
             <p style={{ color: '#6B7280', fontSize: 18 }}>Everything you need. Nothing you don't.</p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}>
-            {[
-              {
-                icon: <Users size={24} color="var(--primary)" />,
-                title: 'Shared Focus Sessions',
-                desc: 'See who\'s currently locked in and working. Run solo or collaborative focus sessions with your team.',
-                bg: '#FFF7F5',
-              },
-              {
-                icon: <CheckSquare size={24} color="#3B82F6" />,
-                title: 'Lightweight Task Management',
-                desc: 'Assign tasks, track progress, and keep work moving without bloated project software.',
-                bg: '#EFF6FF',
-              },
-              {
-                icon: <Eye size={24} color="#10B981" />,
-                title: 'Async Accountability',
-                desc: 'Know when teammates pick up tasks, enter focus mode, or complete work. Without meetings. Without micromanaging.',
-                bg: '#F0FDF4',
-              },
-              {
-                icon: <BarChart2 size={24} color="#8B5CF6" />,
-                title: 'Project-Based Time Tracking',
-                desc: 'Track focused work per project or client. Perfect for freelancers, agencies, and contractor teams.',
-                bg: '#F5F3FF',
-              },
-            ].map(f => (
-              <div key={f.title} style={{
-                background: f.bg, borderRadius: 20, padding: 28,
-                border: '1px solid rgba(0,0,0,0.04)',
-              }}>
-                <div style={{ width: 48, height: 48, borderRadius: 14, background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                  {f.icon}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+            {/* Row 1 */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+
+              {/* Shared Focus Sessions */}
+              <div style={{ background: '#FFF7F5', borderRadius: 24, overflow: 'hidden', border: '1px solid rgba(232,101,74,0.1)' }}>
+                <div style={{ background: 'linear-gradient(145deg, #1A1A2E 0%, #16213E 100%)', padding: '28px 28px 0', margin: '0' }}>
+                  {/* Timer + presence mockup */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+                    <div style={{ position: 'relative', flexShrink: 0 }}>
+                      <svg width={80} height={80}>
+                        <circle cx={40} cy={40} r={33} fill="none" stroke="#2A2A4A" strokeWidth={6} />
+                        <circle cx={40} cy={40} r={33} fill="none" stroke="#E8654A" strokeWidth={6}
+                          strokeDasharray={207} strokeDashoffset={52} strokeLinecap="round"
+                          transform="rotate(-90 40 40)" />
+                      </svg>
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ fontSize: 16, fontWeight: 800, color: 'white', letterSpacing: '-0.04em' }}>18:45</span>
+                        <span style={{ fontSize: 8, color: '#6B7280' }}>FOCUS</span>
+                      </div>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                        <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#10B981' }} />
+                        <span style={{ fontSize: 11, color: '#9CA3AF' }}>4 teammates locked in</span>
+                      </div>
+                      {[
+                        { name: 'Marcus', task: 'Writing proposal', color: '#E8654A' },
+                        { name: 'Bisi', task: 'Editing video', color: '#3B82F6' },
+                        { name: 'Tolu', task: 'Client review', color: '#10B981' },
+                      ].map(m => (
+                        <div key={m.name} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: m.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                            {m.name[0]}
+                          </div>
+                          <span style={{ fontSize: 11, color: '#D1D5DB', flex: 1 }}>{m.name}</span>
+                          <span style={{ fontSize: 10, color: '#6B7280' }}>{m.task}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>{f.title}</h3>
-                <p style={{ color: '#6B7280', lineHeight: 1.6, fontSize: 14, margin: 0 }}>{f.desc}</p>
+                <div style={{ padding: 24 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                      <Users size={18} color="var(--primary)" />
+                    </div>
+                    <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Shared Focus Sessions</h3>
+                  </div>
+                  <p style={{ color: '#6B7280', lineHeight: 1.6, fontSize: 14, margin: 0 }}>See who's currently locked in and working. Run solo or collaborative focus sessions with your team.</p>
+                </div>
               </div>
-            ))}
+
+              {/* Lightweight Task Management */}
+              <div style={{ background: '#EFF6FF', borderRadius: 24, overflow: 'hidden', border: '1px solid rgba(59,130,246,0.1)' }}>
+                <div style={{ background: 'linear-gradient(145deg, #1A1A2E 0%, #16213E 100%)', padding: '24px 24px 0' }}>
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.05em' }}>TODAY'S TASKS</span>
+                      <span style={{ fontSize: 10, color: '#E8654A', fontWeight: 600 }}>3 / 5 done</span>
+                    </div>
+                    {[
+                      { title: 'Design landing page', done: true, color: '#E8654A', assignee: 'T' },
+                      { title: 'Review pitch deck', done: true, color: '#3B82F6', assignee: 'M' },
+                      { title: 'Write weekly update', done: false, color: '#10B981', assignee: 'B', active: true },
+                      { title: 'Send client invoice', done: false, color: '#8B5CF6', assignee: 'T' },
+                    ].map((t, i) => (
+                      <div key={i} style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        background: t.active ? 'rgba(232,101,74,0.12)' : 'rgba(255,255,255,0.04)',
+                        border: t.active ? '1px solid rgba(232,101,74,0.3)' : '1px solid transparent',
+                        borderRadius: 10, padding: '8px 12px', marginBottom: 6,
+                      }}>
+                        <div style={{ width: 16, height: 16, borderRadius: '50%', background: t.done ? t.color : 'transparent', border: t.done ? 'none' : `2px solid ${t.color}`, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {t.done && <Check size={8} color="white" strokeWidth={3} />}
+                        </div>
+                        <span style={{ fontSize: 12, color: t.done ? '#6B7280' : '#E5E7EB', textDecoration: t.done ? 'line-through' : 'none', flex: 1 }}>{t.title}</span>
+                        <div style={{ width: 18, height: 18, borderRadius: '50%', background: t.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, color: 'white' }}>{t.assignee}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ padding: 24 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                      <CheckSquare size={18} color="#3B82F6" />
+                    </div>
+                    <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Lightweight Task Management</h3>
+                  </div>
+                  <p style={{ color: '#6B7280', lineHeight: 1.6, fontSize: 14, margin: 0 }}>Assign tasks, track progress, and keep work moving without bloated project software.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Row 2 */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+
+              {/* Async Accountability */}
+              <div style={{ background: '#F0FDF4', borderRadius: 24, overflow: 'hidden', border: '1px solid rgba(16,185,129,0.1)' }}>
+                <div style={{ background: 'linear-gradient(145deg, #1A1A2E 0%, #16213E 100%)', padding: '24px 24px 0' }}>
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.05em' }}>INBOX</span>
+                      <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#E8654A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: 'white' }}>3</div>
+                    </div>
+                    {[
+                      { icon: '📋', text: 'Marcus assigned you "Review docs"', time: '2m ago', unread: true },
+                      { icon: '✅', text: 'Bisi completed "Design mockup"', time: '14m ago', unread: true },
+                      { icon: '👥', text: 'You\'ve been added to "Q2 Campaign"', time: '1h ago', unread: true },
+                      { icon: '🔔', text: 'Tolu picked up "Write copy"', time: '2h ago', unread: false },
+                    ].map((n, i) => (
+                      <div key={i} style={{
+                        display: 'flex', alignItems: 'flex-start', gap: 10,
+                        background: n.unread ? 'rgba(255,255,255,0.06)' : 'transparent',
+                        borderRadius: 10, padding: '8px 10px', marginBottom: 4,
+                        borderLeft: n.unread ? '2px solid #E8654A' : '2px solid transparent',
+                      }}>
+                        <span style={{ fontSize: 13 }}>{n.icon}</span>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: 11, color: n.unread ? '#E5E7EB' : '#6B7280', margin: 0, lineHeight: 1.4 }}>{n.text}</p>
+                          <span style={{ fontSize: 10, color: '#4B5563' }}>{n.time}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ padding: 24 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                      <Eye size={18} color="#10B981" />
+                    </div>
+                    <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Async Accountability</h3>
+                  </div>
+                  <p style={{ color: '#6B7280', lineHeight: 1.6, fontSize: 14, margin: 0 }}>Know when teammates pick up tasks, enter focus mode, or complete work. Without meetings. Without micromanaging.</p>
+                </div>
+              </div>
+
+              {/* Project-Based Time Tracking */}
+              <div style={{ background: '#F5F3FF', borderRadius: 24, overflow: 'hidden', border: '1px solid rgba(139,92,246,0.1)' }}>
+                <div style={{ background: 'linear-gradient(145deg, #1A1A2E 0%, #16213E 100%)', padding: '24px 24px 0' }}>
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.05em' }}>THIS WEEK</span>
+                      <span style={{ fontSize: 11, color: '#E8654A', fontWeight: 600 }}>18.5 hrs total</span>
+                    </div>
+                    {[
+                      { name: 'Client Website', hours: 7.5, max: 10, color: '#E8654A' },
+                      { name: 'Mobile App', hours: 5, max: 10, color: '#3B82F6' },
+                      { name: 'Internal Tools', hours: 4, max: 10, color: '#10B981' },
+                      { name: 'Research', hours: 2, max: 10, color: '#8B5CF6' },
+                    ].map(p => (
+                      <div key={p.name} style={{ marginBottom: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span style={{ fontSize: 11, color: '#D1D5DB' }}>📁 {p.name}</span>
+                          <span style={{ fontSize: 11, color: '#9CA3AF' }}>{p.hours}h</span>
+                        </div>
+                        <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 99 }}>
+                          <div style={{ height: '100%', width: `${(p.hours / p.max) * 100}%`, background: p.color, borderRadius: 99 }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ padding: 24 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                      <BarChart2 size={18} color="#8B5CF6" />
+                    </div>
+                    <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Project-Based Time Tracking</h3>
+                  </div>
+                  <p style={{ color: '#6B7280', lineHeight: 1.6, fontSize: 14, margin: 0 }}>Track focused work per project or client. Perfect for freelancers, agencies, and contractor teams.</p>
+                </div>
+              </div>
+
+            </div>
           </div>
         </div>
       </section>
