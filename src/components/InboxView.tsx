@@ -28,6 +28,24 @@ type ActivityItem = {
   unread: boolean
 }
 
+interface DbNotification {
+  id: string
+  user_id: string
+  type: string
+  body: string
+  task_id: string | null
+  project_id: string | null
+  read: boolean
+  created_at: string
+}
+
+const NOTIF_ICONS: Record<string, string> = {
+  task_completed: '✅',
+  task_started: '🚀',
+  task_query: '⏰',
+  task_assigned: '📋',
+}
+
 function LevelCard() {
   const { sessions, profile } = useApp()
   const total = sessions.length
@@ -83,6 +101,9 @@ export default function InboxView() {
   const { tasks, acceptTask, declineTask, user } = useApp()
   const pendingTasks = tasks.filter(t => t.assigned_to === user?.id && t.assignment_status === 'pending')
 
+  // DB notifications
+  const [notifications, setNotifications] = useState<DbNotification[]>([])
+
   // Unread tracking
   const lastSeenRef = useRef<number>(
     typeof window !== 'undefined' ? Number(localStorage.getItem('inbox_last_seen') || 0) : 0
@@ -95,10 +116,15 @@ export default function InboxView() {
   const [clearedBefore, setClearedBefore] = useState<number>(() =>
     typeof window !== 'undefined' ? Number(localStorage.getItem('inbox_cleared_before') || 0) : 0
   )
-  function clearActivity() {
+
+  async function clearActivity() {
     const now = Date.now()
     localStorage.setItem('inbox_cleared_before', String(now))
     setClearedBefore(now)
+    // Mark all DB notifications as read
+    if (user) {
+      await supabase.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false)
+    }
   }
 
   const [assignerProfiles, setAssignerProfiles] = useState<Record<string, Profile>>({})
@@ -106,10 +132,37 @@ export default function InboxView() {
     created_at: string; project_id: string; project_name: string; owner_name: string
   }>>([])
 
+  // Load DB notifications + realtime subscription
   useEffect(() => {
     if (!user) return
 
-    // Assigner profiles for tasks assigned to me
+    supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(({ data }) => {
+        if (data) setNotifications(data as DbNotification[])
+      })
+
+    const channel = supabase
+      .channel(`notifications:${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          setNotifications(prev => [payload.new as DbNotification, ...prev])
+        }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [user])
+
+  useEffect(() => {
+    if (!user) return
+
     const ids = [...new Set(
       tasks
         .filter(t => t.assigned_to === user.id && t.assigned_by && t.assigned_by !== user.id)
@@ -125,7 +178,6 @@ export default function InboxView() {
       })
     }
 
-    // Project memberships
     supabase
       .from('project_members')
       .select('created_at, project_id, projects(name, user_id, profiles!projects_user_id_fkey(name))')
@@ -148,7 +200,19 @@ export default function InboxView() {
   const ls = lastSeenRef.current
   const items: ActivityItem[] = []
 
-  // Tasks assigned TO me
+  // DB notifications (task_completed, task_started, task_query)
+  notifications.forEach(n => {
+    items.push({
+      id: `notif-${n.id}`,
+      icon: NOTIF_ICONS[n.type] ?? '🔔',
+      text: n.body,
+      time: timeAgo(n.created_at),
+      date: n.created_at,
+      unread: !n.read,
+    })
+  })
+
+  // Tasks assigned TO me (derived)
   tasks
     .filter(t => t.assigned_to === user?.id && t.assignment_status !== null)
     .forEach(t => {
@@ -163,7 +227,7 @@ export default function InboxView() {
       }
     })
 
-  // Tasks assigned BY me to others
+  // Tasks assigned BY me to others (derived)
   tasks
     .filter(t => t.assigned_by === user?.id && t.assigned_to !== user?.id && t.assignment_status !== null)
     .forEach(t => {
@@ -184,7 +248,7 @@ export default function InboxView() {
     items.push({ id: `project-${m.project_id}`, icon: '👥', text: `${m.owner_name} added you to "${m.project_name}"`, time: timeAgo(m.created_at), date: m.created_at, unread })
   })
 
-  // Sort newest first, filter cleared items, filter pending (shown above)
+  // Sort newest first, filter cleared items, filter pending (shown in Action Required)
   const activityItems = items
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .filter(i => !i.id.startsWith('pending-'))

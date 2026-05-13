@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Trash2, Pin, PinOff, MoreHorizontal, Pencil } from 'lucide-react'
+import { Check, Trash2, Pin, PinOff, MoreHorizontal, Pencil, Bell } from 'lucide-react'
 import { useApp } from '@/contexts/AppContext'
+import { supabase } from '@/lib/supabase'
 import AddTaskModal from './AddTaskModal'
 import type { Task } from '@/lib/types'
 
@@ -29,9 +30,33 @@ function formatTime(minutes: number) {
 }
 
 function TaskCard({ task }: { task: Task }) {
-  const { updateTask, deleteTask, pinTask, pinnedTaskId, presence, profile, setActiveTab, settings } = useApp()
+  const { updateTask, deleteTask, pinTask, pinnedTaskId, presence, profile, setActiveTab, settings, user } = useApp()
   const [showMenu, setShowMenu] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
+  const [queryState, setQueryState] = useState<'idle' | 'sending' | 'sent'>('idle')
+
+  // Is the current user the assigner (and task is assigned to someone else)?
+  const isAssigner = task.assigned_by === user?.id && task.assigned_to && task.assigned_to !== user?.id
+
+  async function sendQuery() {
+    if (queryState !== 'idle') return
+    setQueryState('sending')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-task-query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ task_id: task.id }),
+      })
+      setQueryState(res.ok ? 'sent' : 'idle')
+      if (res.ok) setTimeout(() => setQueryState('idle'), 3000)
+    } catch {
+      setQueryState('idle')
+    }
+  }
   const isPinned = pinnedTaskId === task.id
   const progressPct = task.estimated_pomos > 0
     ? Math.min(100, (task.completed_pomos / task.estimated_pomos) * 100)
@@ -186,6 +211,26 @@ function TaskCard({ task }: { task: Task }) {
                 {formatTime(timeSpentMins)} spent
               </span>
             )}
+          </div>
+        )}
+
+        {/* Query button — shown to assigner on non-done assigned tasks */}
+        {isAssigner && !task.done && (
+          <div className="mt-2 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+            <button
+              onClick={e => { e.stopPropagation(); sendQuery() }}
+              disabled={queryState !== 'idle'}
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
+              style={{
+                background: queryState === 'sent' ? '#D1FAE5' : 'var(--border)',
+                color: queryState === 'sent' ? '#059669' : 'var(--muted)',
+              }}
+            >
+              <Bell size={12} />
+              {queryState === 'idle' && 'Send Reminder'}
+              {queryState === 'sending' && 'Sending…'}
+              {queryState === 'sent' && '✓ Reminder sent!'}
+            </button>
           </div>
         )}
       </div>
