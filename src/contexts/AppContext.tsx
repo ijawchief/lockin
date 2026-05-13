@@ -436,6 +436,7 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
       assignment_status: taskData.assigned_to ? 'pending' : null,
       due_date: taskData.due_date ?? null,
       created_at: new Date().toISOString(),
+      completed_at: null,
       project: projects.find(p => p.id === taskData.project_id) ?? null,
       assignee_profile: null,
     }

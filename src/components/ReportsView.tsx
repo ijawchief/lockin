@@ -175,12 +175,13 @@ function TeamTab() {
 }
 
 export default function ReportsView() {
-  const { sessions } = useApp()
+  const { sessions, tasks } = useApp()
   const [tab, setTab] = useState<'me' | 'team'>('me')
   const pomSessions = sessions.filter(s => s.mode === 'pomodoro')
 
   const today = new Date().toDateString()
-  const todayCount = pomSessions.filter(s => new Date(s.completed_at).toDateString() === today).length
+  const todayPomos = pomSessions.filter(s => new Date(s.completed_at).toDateString() === today).length
+  const todayTasks = tasks.filter(t => t.done && t.completed_at && new Date(t.completed_at).toDateString() === today).length
 
   const weekStart = new Date()
   weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7))
@@ -190,8 +191,16 @@ export default function ReportsView() {
   const totalHours = (pomSessions.reduce((acc, s) => acc + (s.duration ?? 1500), 0) / 3600).toFixed(1)
   const allTime = pomSessions.length
 
+  // Personal best tasks in a day
+  const tasksByDay: Record<string, number> = {}
+  tasks.filter(t => t.done && t.completed_at).forEach(t => {
+    const d = new Date(t.completed_at!).toDateString()
+    tasksByDay[d] = (tasksByDay[d] ?? 0) + 1
+  })
+  const bestTaskDay = Math.max(...Object.values(tasksByDay), 0)
+  const isTaskPB = todayTasks > 0 && todayTasks >= bestTaskDay
+
   const weekData = getWeekData(sessions)
-  const maxCount = Math.max(...weekData.map(d => d.count), 1)
 
   return (
     <div className="scroll-area px-4 pt-4">
@@ -219,12 +228,40 @@ export default function ReportsView() {
 
       {tab === 'me' ? (
         <>
+          {/* Today hero card */}
+          <div className="card p-4 mb-3" style={{ background: 'linear-gradient(135deg, #1A1A2E 0%, #16213E 100%)', border: 'none' }}>
+            <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#6B7280' }}>Today</p>
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <div className="flex items-end gap-2 mb-1">
+                  <span className="text-5xl font-black" style={{ color: 'white', lineHeight: 1 }}>{todayTasks}</span>
+                  <span className="text-sm font-semibold mb-1" style={{ color: '#9CA3AF' }}>task{todayTasks !== 1 ? 's' : ''} done</span>
+                </div>
+                {isTaskPB && (
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(232,101,74,0.2)', color: 'var(--primary)' }}>
+                    🏆 Personal best!
+                  </span>
+                )}
+                {!isTaskPB && bestTaskDay > 0 && (
+                  <span className="text-xs" style={{ color: '#6B7280' }}>Best: {bestTaskDay} tasks</span>
+                )}
+              </div>
+              <div className="text-right">
+                <div className="flex items-end gap-1 justify-end mb-1">
+                  <span className="text-3xl font-black" style={{ color: 'var(--primary)', lineHeight: 1 }}>{todayPomos}</span>
+                  <span className="text-sm font-semibold mb-0.5" style={{ color: '#9CA3AF' }}>🍅</span>
+                </div>
+                <p className="text-xs" style={{ color: '#6B7280' }}>pomos</p>
+              </div>
+            </div>
+          </div>
+
           {/* Stats grid */}
           <div className="grid grid-cols-2 gap-3 mb-5">
-            <StatCard label="All Time" value={allTime} emoji="🔒" color="var(--primary)" />
-            <StatCard label="Today" value={todayCount} emoji="⏰" color="#8B5CF6" />
+            <StatCard label="All Time Pomos" value={allTime} emoji="🔒" color="var(--primary)" />
             <StatCard label="This Week" value={weekCount} emoji="📅" color="#10B981" />
             <StatCard label="Focus Hours" value={`${totalHours}h`} emoji="🎯" color="#3B82F6" />
+            <StatCard label="Tasks Done" value={tasks.filter(t => t.done).length} emoji="✅" color="#8B5CF6" />
           </div>
 
           {/* Weekly chart */}

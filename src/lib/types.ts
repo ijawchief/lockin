@@ -29,6 +29,7 @@ export interface Task {
   assignment_status: 'pending' | 'accepted' | 'declined' | null
   due_date: string | null
   created_at: string
+  completed_at: string | null
   // joined
   project?: Project | null
   assignee_profile?: Profile | null
