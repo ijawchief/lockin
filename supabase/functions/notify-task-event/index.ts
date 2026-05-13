@@ -9,8 +9,8 @@ serve(async (req) => {
   if (!record.assigned_to || !record.assigned_by) return new Response('skipped', { status: 200 })
 
   const justCompleted = record.done === true && old.done !== true
-  const justAccepted = record.assignment_status === 'accepted' && old.assignment_status !== 'accepted'
-  if (!justCompleted && !justAccepted) return new Response('no change', { status: 200 })
+  const justStarted = record.completed_pomos >= 1 && (old.completed_pomos ?? 0) === 0
+  if (!justCompleted && !justStarted) return new Response('no change', { status: 200 })
 
   const admin = createClient(
     Deno.env.get('SUPABASE_URL')!,
