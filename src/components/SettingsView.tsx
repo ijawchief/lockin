@@ -54,7 +54,7 @@ function Toggle({ label, desc, value, onChange }: {
 }
 
 export default function SettingsView() {
-  const { settings, updateSettings } = useApp()
+  const { settings, updateSettings, darkMode, toggleDarkMode } = useApp()
   const router = useRouter()
 
   async function signOut() {
@@ -114,6 +114,16 @@ export default function SettingsView() {
           desc="Play alarm when timer ends"
           value={settings.sound_enabled}
           onChange={v => updateSettings({ sound_enabled: v })}
+        />
+      </section>
+
+      <section className="card p-4 mb-4">
+        <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted)' }}>Appearance</p>
+        <Toggle
+          label="Dark Mode"
+          desc="Switch to a dark colour scheme"
+          value={darkMode}
+          onChange={toggleDarkMode}
         />
       </section>
 

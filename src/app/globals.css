@@ -9,6 +9,16 @@
   --text: #1A1A2E;
   --muted: #9CA3AF;
   --border: #E5E7EB;
+  --surface: #F9FAFB;
+}
+
+html.dark {
+  --bg: #0F0F14;
+  --card: #1A1A2E;
+  --text: #F1F5F9;
+  --muted: #6B7280;
+  --border: #2D2D3F;
+  --surface: #252538;
 }
 
 * {
@@ -57,7 +67,7 @@ html, body {
 .btn-primary:active { transform: scale(0.97); opacity: 0.9; }
 
 .btn-ghost {
-  background: #F3F4F6;
+  background: var(--surface);
   color: var(--text);
   border-radius: 12px;
   font-weight: 500;
@@ -135,11 +145,12 @@ html, body {
   padding: 10px 14px;
   font-size: 15px;
   outline: none;
-  background: white;
+  background: var(--card);
   color: var(--text);
   transition: border-color 0.15s;
 }
 .input:focus { border-color: var(--primary); }
+.input::placeholder { color: var(--muted); }
 
 .badge-locked { opacity: 0.3; filter: grayscale(1); }
 .badge-unlocked { opacity: 1; }

@@ -38,6 +38,8 @@ interface AppState {
   pinnedTaskId: string | null
   // ui
   activeTab: 'timer' | 'projects' | 'reports' | 'settings' | 'inbox'
+  darkMode: boolean
+  toggleDarkMode: () => void
   // methods
   setMode: (m: TimerMode) => void
   startStop: () => void
@@ -126,6 +128,20 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
   const [cycleCount, setCycleCount] = useState(0)
   const [pinnedTaskId, setPinnedTaskId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<AppState['activeTab']>('timer')
+  const [darkMode, setDarkMode] = useState<boolean>(() =>
+    typeof window !== 'undefined' && localStorage.getItem('dark_mode') === 'true'
+  )
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+    localStorage.setItem('dark_mode', String(darkMode))
+  }, [darkMode])
+
+  function toggleDarkMode() { setDarkMode(v => !v) }
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
@@ -549,7 +565,7 @@ if (data) {
     <AppContext.Provider value={{
       user, profile, tasks, projects, sessions, settings, presence, notifications,
       mode, timeLeft, isRunning, pomosToday, cycleCount, pinnedTaskId,
-      activeTab, setActiveTab,
+      activeTab, setActiveTab, darkMode, toggleDarkMode,
       setMode, startStop, reset, skip, pinTask,
       addTask, updateTask, deleteTask,
       addProject, deleteProject, addProjectMember, removeProjectMember,

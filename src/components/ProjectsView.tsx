@@ -5,7 +5,8 @@ import { Plus, Trash2, Users, X, Search, UserMinus, Pencil } from 'lucide-react'
 import { useApp } from '@/contexts/AppContext'
 import { PROJECT_COLORS } from '@/lib/types'
 import { supabase } from '@/lib/supabase'
-import type { Project, Profile } from '@/lib/types'
+import AddTaskModal from './AddTaskModal'
+import type { Project, Profile, Task } from '@/lib/types'
 
 function ProjectFormModal({
   project,
@@ -236,6 +237,7 @@ export default function ProjectsView() {
   const { projects, tasks, deleteProject } = useApp()
   const [showAdd, setShowAdd] = useState(false)
   const [editProject, setEditProject] = useState<Project | null>(null)
+  const [editTask, setEditTask] = useState<Task | null>(null)
   const [membersProject, setMembersProject] = useState<Project | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
@@ -313,19 +315,26 @@ export default function ProjectsView() {
 
                 {projectTasks.length > 0 && (
                   <div className="mt-3 flex flex-col gap-1.5">
-                    {projectTasks.slice(0, 3).map(t => (
-                      <div key={t.id} className="flex items-center gap-2 text-sm">
+                    {projectTasks.slice(0, 5).map(t => (
+                      <div key={t.id} className="flex items-center gap-2 text-sm group">
                         <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0"
                           style={{ borderColor: t.done ? project.color : 'var(--border)', background: t.done ? project.color : 'transparent' }}>
                           {t.done && <span style={{ color: 'white', fontSize: 8 }}>✓</span>}
                         </div>
-                        <span style={{ color: t.done ? 'var(--muted)' : 'var(--text)', textDecoration: t.done ? 'line-through' : 'none' }}>
+                        <span className="flex-1 truncate" style={{ color: t.done ? 'var(--muted)' : 'var(--text)', textDecoration: t.done ? 'line-through' : 'none' }}>
                           {t.title}
                         </span>
+                        <button
+                          onClick={() => setEditTask(t)}
+                          className="w-6 h-6 flex items-center justify-center rounded-lg flex-shrink-0"
+                          style={{ color: 'var(--muted)', opacity: 0.5 }}
+                        >
+                          <Pencil size={11} />
+                        </button>
                       </div>
                     ))}
-                    {projectTasks.length > 3 && (
-                      <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>+{projectTasks.length - 3} more</p>
+                    {projectTasks.length > 5 && (
+                      <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>+{projectTasks.length - 5} more</p>
                     )}
                   </div>
                 )}
@@ -337,6 +346,7 @@ export default function ProjectsView() {
 
       {showAdd && <ProjectFormModal onClose={() => setShowAdd(false)} />}
       {editProject && <ProjectFormModal project={editProject} onClose={() => setEditProject(null)} />}
+      {editTask && <AddTaskModal task={editTask} onClose={() => setEditTask(null)} />}
       {membersProject && <MembersModal project={membersProject} onClose={() => setMembersProject(null)} />}
 
       {confirmDelete && (
