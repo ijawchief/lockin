@@ -222,6 +222,33 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
         }
         loadTasks()
       })
+      // Sync task updates made by the assignee back to the assigner's screen
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'tasks',
+        filter: `user_id=eq.${user.id}`,
+      }, async payload => {
+        const { data } = await supabase
+          .from('tasks')
+          .select('*, project:projects(*), assignee_profile:profiles!tasks_assigned_to_fkey(*)')
+          .eq('id', payload.new.id)
+          .single()
+        if (data) setTasks(prev => prev.map(t => t.id === data.id ? data : t))
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'tasks',
+        filter: `assigned_to=eq.${user.id}`,
+      }, async payload => {
+        const { data } = await supabase
+          .from('tasks')
+          .select('*, project:projects(*), assignee_profile:profiles!tasks_assigned_to_fkey(*)')
+          .eq('id', payload.new.id)
+          .single()
+        if (data) setTasks(prev => prev.map(t => t.id === data.id ? data : t))
+      })
       .subscribe()
     notifChannelRef.current = notifCh
 
