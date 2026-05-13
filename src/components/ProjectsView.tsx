@@ -240,6 +240,15 @@ export default function ProjectsView() {
   const [editTask, setEditTask] = useState<Task | null>(null)
   const [membersProject, setMembersProject] = useState<Project | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
+
+  function toggleExpand(id: string) {
+    setExpandedProjects(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
 
   return (
     <div className="scroll-area px-4 pt-4">
@@ -317,31 +326,53 @@ export default function ProjectsView() {
                   </div>
                 )}
 
-                {projectTasks.length > 0 && (
-                  <div className="mt-3 flex flex-col gap-1.5">
-                    {projectTasks.slice(0, 5).map(t => (
-                      <div key={t.id} className="flex items-center gap-2 text-sm group">
-                        <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0"
-                          style={{ borderColor: t.done ? project.color : 'var(--border)', background: t.done ? project.color : 'transparent' }}>
-                          {t.done && <span style={{ color: 'white', fontSize: 8 }}>✓</span>}
+                {projectTasks.length > 0 && (() => {
+                  const isExpanded = expandedProjects.has(project.id)
+                  const visible = isExpanded ? projectTasks : projectTasks.slice(0, 5)
+                  const hidden = projectTasks.length - 5
+                  return (
+                    <div className="mt-3 flex flex-col gap-1.5">
+                      {visible.map(t => (
+                        <div key={t.id} className="flex items-center gap-2 text-sm group">
+                          <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                            style={{ borderColor: t.done ? project.color : 'var(--border)', background: t.done ? project.color : 'transparent' }}>
+                            {t.done && <span style={{ color: 'white', fontSize: 8 }}>✓</span>}
+                          </div>
+                          <span className="flex-1 truncate" style={{ color: t.done ? 'var(--muted)' : 'var(--text)', textDecoration: t.done ? 'line-through' : 'none' }}>
+                            {t.title}
+                          </span>
+                          <button
+                            onClick={() => setEditTask(t)}
+                            className="w-6 h-6 flex items-center justify-center rounded-lg flex-shrink-0"
+                            style={{ color: 'var(--muted)', opacity: 0.5 }}
+                          >
+                            <Pencil size={11} />
+                          </button>
                         </div>
-                        <span className="flex-1 truncate" style={{ color: t.done ? 'var(--muted)' : 'var(--text)', textDecoration: t.done ? 'line-through' : 'none' }}>
-                          {t.title}
-                        </span>
+                      ))}
+                      {!isExpanded && hidden > 0 && (
                         <button
-                          onClick={() => setEditTask(t)}
-                          className="w-6 h-6 flex items-center justify-center rounded-lg flex-shrink-0"
-                          style={{ color: 'var(--muted)', opacity: 0.5 }}
+                          onClick={() => toggleExpand(project.id)}
+                          className="text-xs font-medium mt-0.5 text-left px-0 py-1 flex items-center gap-1"
+                          style={{ color: project.color }}
                         >
-                          <Pencil size={11} />
+                          <span>+{hidden} more</span>
+                          <span style={{ fontSize: 10 }}>▼</span>
                         </button>
-                      </div>
-                    ))}
-                    {projectTasks.length > 5 && (
-                      <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>+{projectTasks.length - 5} more</p>
-                    )}
-                  </div>
-                )}
+                      )}
+                      {isExpanded && (
+                        <button
+                          onClick={() => toggleExpand(project.id)}
+                          className="text-xs font-medium mt-0.5 text-left py-1 flex items-center gap-1"
+                          style={{ color: 'var(--muted)' }}
+                        >
+                          <span>Show less</span>
+                          <span style={{ fontSize: 10 }}>▲</span>
+                        </button>
+                      )}
+                    </div>
+                  )
+                })()}
               </div>
             )
           })}

@@ -285,6 +285,7 @@ export default function TasksSection() {
   const { tasks, updateTask, deleteTask, user } = useApp()
   const [showAdd, setShowAdd] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [showDone, setShowDone] = useState(false)
 
   // My tasks: tasks I own (not assigned out) + tasks assigned TO me that I accepted
   const myTasks = tasks.filter(t =>
@@ -325,21 +326,33 @@ export default function TasksSection() {
             </p>
           ) : (
             <>
-              {/* ── My Tasks ── */}
-              {myTasks.length > 0 && (
+              {/* ── My Active Tasks ── */}
+              {/* (empty state shown inline when no active/done/assigned) */}
+              {myActive.length === 0 && assignedOut.length === 0 && myDone.length === 0 && (
+                <p className="text-center py-6 text-sm" style={{ color: 'var(--muted)' }}>No active tasks</p>
+              )}
+              {myActive.map(t => <TaskCard key={t.id} task={t} />)}
+
+              {/* ── Completed (collapsible) ── */}
+              {myDone.length > 0 && (
                 <>
-                  {myActive.map(t => <TaskCard key={t.id} task={t} />)}
-                  {myDone.length > 0 && (
+                  <button
+                    onClick={() => setShowDone(v => !v)}
+                    className="w-full flex items-center gap-2 mt-1 py-1"
+                  >
+                    <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+                    <span className="text-xs font-medium flex items-center gap-1 px-1 py-0.5 rounded-full"
+                      style={{ color: '#10B981', background: '#D1FAE5' }}>
+                      ✓ {myDone.length} completed {showDone ? '▲' : '▼'}
+                    </span>
+                    <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+                  </button>
+                  {showDone && (
                     <>
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
-                        <span className="text-xs" style={{ color: 'var(--muted)' }}>{myDone.length} completed</span>
-                        <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
-                      </div>
                       {myDone.map(t => <TaskCard key={t.id} task={t} />)}
-                      <button onClick={() => setShowConfirm(true)} className="text-xs text-center mt-1 py-1"
-                        style={{ color: 'var(--muted)' }}>
-                        Clear completed
+                      <button onClick={() => setShowConfirm(true)} className="text-xs text-center py-1.5 rounded-lg"
+                        style={{ color: '#EF4444', background: '#FEF2F2' }}>
+                        🗑 Clear completed
                       </button>
                     </>
                   )}
@@ -348,15 +361,22 @@ export default function TasksSection() {
 
               {/* ── Assigned to Others ── */}
               {assignedOut.length > 0 && (
-                <>
-                  <div className="flex items-center gap-2 mt-2">
-                    <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
-                    <span className="text-xs font-semibold" style={{ color: 'var(--muted)' }}>👥 Assigned to others</span>
-                    <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+                <div className="mt-3 rounded-xl overflow-hidden" style={{ border: '1.5px solid var(--border)' }}>
+                  <div className="flex items-center gap-2 px-3 py-2" style={{ background: 'var(--surface)' }}>
+                    <span style={{ fontSize: 14 }}>👥</span>
+                    <span className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
+                      Assigned to others
+                    </span>
+                    <span className="ml-auto text-xs font-semibold px-1.5 py-0.5 rounded-full"
+                      style={{ background: 'var(--border)', color: 'var(--muted)' }}>
+                      {assignedOut.length}
+                    </span>
                   </div>
-                  {assignedActive.map(t => <TaskCard key={t.id} task={t} />)}
-                  {assignedDone.map(t => <TaskCard key={t.id} task={t} />)}
-                </>
+                  <div className="p-2 flex flex-col gap-2">
+                    {assignedActive.map(t => <TaskCard key={t.id} task={t} />)}
+                    {assignedDone.map(t => <TaskCard key={t.id} task={t} />)}
+                  </div>
+                </div>
               )}
             </>
           )}
