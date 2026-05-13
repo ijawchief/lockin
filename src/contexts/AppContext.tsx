@@ -520,9 +520,14 @@ if (data) {
 }
 
   async function deleteProject(id: string) {
+    const snapshot = projects
     setProjects(prev => prev.filter(p => p.id !== id))
     setTasks(prev => prev.map(t => t.project_id === id ? { ...t, project_id: null, project: null } : t))
-    await supabase.from('projects').delete().eq('id', id)
+    const { error } = await supabase.from('projects').delete().eq('id', id)
+    if (error) {
+      // Rollback — likely not the owner
+      setProjects(snapshot)
+    }
   }
 
   async function addProjectMember(projectId: string, query: string): Promise<string> {

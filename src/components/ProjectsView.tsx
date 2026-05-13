@@ -234,7 +234,7 @@ function MembersModal({ project, onClose }: { project: Project; onClose: () => v
 }
 
 export default function ProjectsView() {
-  const { projects, tasks, deleteProject } = useApp()
+  const { projects, tasks, deleteProject, user } = useApp()
   const [showAdd, setShowAdd] = useState(false)
   const [editProject, setEditProject] = useState<Project | null>(null)
   const [editTask, setEditTask] = useState<Task | null>(null)
@@ -271,30 +271,34 @@ export default function ProjectsView() {
                     <span className="font-semibold truncate">{project.name}</span>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => setEditProject(project)}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg"
-                      style={{ color: 'var(--muted)' }}
-                      title="Edit project"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      onClick={() => setMembersProject(project)}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg"
-                      style={{ color: 'var(--muted)' }}
-                      title="Manage members"
-                    >
-                      <Users size={15} />
-                    </button>
-                    <button
-                      onClick={() => setConfirmDelete(project.id)}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg"
-                      style={{ color: '#EF4444' }}
-                      title="Delete project"
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                    {project.user_id === user?.id && (
+                      <>
+                        <button
+                          onClick={() => setEditProject(project)}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg"
+                          style={{ color: 'var(--muted)' }}
+                          title="Edit project"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={() => setMembersProject(project)}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg"
+                          style={{ color: 'var(--muted)' }}
+                          title="Manage members"
+                        >
+                          <Users size={15} />
+                        </button>
+                        <button
+                          onClick={() => setConfirmDelete(project.id)}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg"
+                          style={{ color: '#EF4444' }}
+                          title="Delete project"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 
