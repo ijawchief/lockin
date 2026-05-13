@@ -62,9 +62,16 @@ function Avatar({ name, url, size = 32 }: { name: string; url?: string | null; s
 }
 
 function TeamTab() {
-  const { presence, user, profile } = useApp()
+  const { presence, user, profile, sessions } = useApp()
   const [teamData, setTeamData] = useState<TeamMember[]>([])
   const [loading, setLoading] = useState(true)
+
+  const weekStart = new Date()
+  weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7))
+  weekStart.setHours(0, 0, 0, 0)
+  const myWeekPomos = sessions.filter(s =>
+    s.mode === 'pomodoro' && new Date(s.completed_at) >= weekStart
+  ).length
 
   useEffect(() => {
     loadTeam()
@@ -131,12 +138,12 @@ function TeamTab() {
           <div className="flex flex-col gap-3">
             {/* Include self */}
             {[
-              { user_id: user?.id ?? '', name: profile?.name ?? 'You', avatar_url: profile?.avatar_url ?? null, pomo_count: -1, isSelf: true },
+              { user_id: user?.id ?? '', name: profile?.name ?? 'You', avatar_url: profile?.avatar_url ?? null, pomo_count: myWeekPomos, isSelf: true },
               ...teamData.map(m => ({ ...m, isSelf: false })),
             ]
               .sort((a, b) => b.pomo_count - a.pomo_count)
               .map((member, i) => {
-                const maxCount = Math.max(...teamData.map(m => m.pomo_count), 1)
+                const maxCount = Math.max(...teamData.map(m => m.pomo_count), myWeekPomos, 1)
                 const pct = member.pomo_count <= 0 ? 0 : Math.round((member.pomo_count / maxCount) * 100)
                 return (
                   <div key={member.user_id} className="flex items-center gap-3">
