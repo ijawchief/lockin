@@ -237,7 +237,7 @@ function TaskCard({ task }: { task: Task }) {
 }
 
 export default function TasksSection() {
-  const { tasks, updateTask } = useApp()
+  const { tasks, updateTask, deleteTask } = useApp()
   const [showAdd, setShowAdd] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
@@ -246,7 +246,7 @@ export default function TasksSection() {
   const doneTasks = myTasks.filter(t => t.done)
 
   async function clearFinished() {
-    for (const t of doneTasks) await updateTask(t.id, { done: false })
+    for (const t of doneTasks) await deleteTask(t.id)
     setShowConfirm(false)
   }
 
