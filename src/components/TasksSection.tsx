@@ -282,18 +282,31 @@ function TaskCard({ task }: { task: Task }) {
 }
 
 export default function TasksSection() {
-  const { tasks, updateTask, deleteTask } = useApp()
+  const { tasks, updateTask, deleteTask, user } = useApp()
   const [showAdd, setShowAdd] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
-  const myTasks = tasks.filter(t => !t.assigned_to || t.assignment_status === 'accepted')
-  const activeTasks = myTasks.filter(t => !t.done)
-  const doneTasks = myTasks.filter(t => t.done)
+  // My tasks: tasks I own (not assigned out) + tasks assigned TO me that I accepted
+  const myTasks = tasks.filter(t =>
+    (t.user_id === user?.id && (!t.assigned_to || t.assigned_to === user?.id)) ||
+    (t.assigned_to === user?.id && t.assignment_status === 'accepted')
+  )
+  const myActive = myTasks.filter(t => !t.done)
+  const myDone = myTasks.filter(t => t.done)
+
+  // Tasks I assigned to other people
+  const assignedOut = tasks.filter(t =>
+    t.assigned_by === user?.id && t.assigned_to && t.assigned_to !== user?.id
+  )
+  const assignedActive = assignedOut.filter(t => !t.done)
+  const assignedDone = assignedOut.filter(t => t.done)
 
   async function clearFinished() {
-    for (const t of doneTasks) await deleteTask(t.id)
+    for (const t of myDone) await deleteTask(t.id)
     setShowConfirm(false)
   }
+
+  const hasAnything = myTasks.length > 0 || assignedOut.length > 0
 
   return (
     <>
@@ -306,25 +319,43 @@ export default function TasksSection() {
         </div>
 
         <div className="card p-3 flex flex-col gap-2">
-          {myTasks.length === 0 ? (
+          {!hasAnything ? (
             <p className="text-center py-6 text-sm" style={{ color: 'var(--muted)' }}>
               No tasks yet — add one to get started
             </p>
           ) : (
             <>
-              {activeTasks.map(t => <TaskCard key={t.id} task={t} />)}
-              {doneTasks.length > 0 && (
+              {/* ── My Tasks ── */}
+              {myTasks.length > 0 && (
                 <>
-                  <div className="flex items-center gap-2 mt-1">
+                  {myActive.map(t => <TaskCard key={t.id} task={t} />)}
+                  {myDone.length > 0 && (
+                    <>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+                        <span className="text-xs" style={{ color: 'var(--muted)' }}>{myDone.length} completed</span>
+                        <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+                      </div>
+                      {myDone.map(t => <TaskCard key={t.id} task={t} />)}
+                      <button onClick={() => setShowConfirm(true)} className="text-xs text-center mt-1 py-1"
+                        style={{ color: 'var(--muted)' }}>
+                        Clear completed
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+
+              {/* ── Assigned to Others ── */}
+              {assignedOut.length > 0 && (
+                <>
+                  <div className="flex items-center gap-2 mt-2">
                     <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
-                    <span className="text-xs" style={{ color: 'var(--muted)' }}>{doneTasks.length} completed</span>
+                    <span className="text-xs font-semibold" style={{ color: 'var(--muted)' }}>👥 Assigned to others</span>
                     <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
                   </div>
-                  {doneTasks.map(t => <TaskCard key={t.id} task={t} />)}
-                  <button onClick={() => setShowConfirm(true)} className="text-xs text-center mt-1 py-1"
-                    style={{ color: 'var(--muted)' }}>
-                    Clear completed
-                  </button>
+                  {assignedActive.map(t => <TaskCard key={t.id} task={t} />)}
+                  {assignedDone.map(t => <TaskCard key={t.id} task={t} />)}
                 </>
               )}
             </>
