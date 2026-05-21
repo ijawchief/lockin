@@ -309,7 +309,7 @@ export default function OnboardingPage() {
             >
               <div className="text-5xl mb-3">{arc.emoji}</div>
               <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: arc.color }}>
-                Your focus type
+                {userName}, your focus type
               </p>
               <h2 className="text-2xl font-black mb-2" style={{ color: '#F1F5F9' }}>
                 {arc.title}
