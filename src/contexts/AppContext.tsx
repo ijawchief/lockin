@@ -175,6 +175,16 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
     refreshSessions()
     setupPresence()
 
+    // Fire-and-forget device/country tracking
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.access_token) {
+        fetch('/api/track', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        }).catch(() => {})
+      }
+    })
+
     // Request browser notification permission
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission()

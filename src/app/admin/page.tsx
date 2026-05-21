@@ -38,6 +38,9 @@ interface TopUser {
   joined_at: string
 }
 
+interface DeviceStat { device: string; count: number }
+interface CountryStat { country_code: string; count: number }
+
 interface DailyStat {
   day: string
   new_users: number
@@ -113,6 +116,8 @@ export default function AdminPage() {
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [topUsers, setTopUsers] = useState<TopUser[]>([])
   const [dailyStats, setDailyStats] = useState<DailyStat[]>([])
+  const [deviceStats, setDeviceStats] = useState<DeviceStat[]>([])
+  const [countryStats, setCountryStats] = useState<CountryStat[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [tab, setTab] = useState<'overview' | 'users' | 'growth'>('overview')
   const [action, setAction] = useState<UserAction | null>(null)
@@ -147,10 +152,12 @@ export default function AdminPage() {
 
   async function loadData() {
     setDataLoading(true)
-    const [statsRes, usersRes, dailyRes] = await Promise.all([
+    const [statsRes, usersRes, dailyRes, deviceRes, countryRes] = await Promise.all([
       supabase.rpc('get_admin_stats'),
       supabase.rpc('get_admin_top_users'),
       supabase.rpc('get_admin_daily_stats'),
+      supabase.rpc('get_admin_device_stats'),
+      supabase.rpc('get_admin_country_stats'),
     ])
     if (statsRes.data) setStats(statsRes.data)
     if (usersRes.data) setTopUsers(usersRes.data)
@@ -160,6 +167,8 @@ export default function AdminPage() {
         day: new Date(d.day).toLocaleDateString('en', { month: 'short', day: 'numeric' }),
       })))
     }
+    if (deviceRes.data) setDeviceStats(deviceRes.data)
+    if (countryRes.data) setCountryStats(countryRes.data)
     setDataLoading(false)
   }
 
@@ -405,6 +414,72 @@ export default function AdminPage() {
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
+
+                {/* Devices + Countries */}
+                {(deviceStats.length > 0 || countryStats.length > 0) && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    {/* Device breakdown */}
+                    <div className="rounded-2xl p-5" style={{ background: '#1A1A2E', border: '1px solid #2D2D3F' }}>
+                      <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: '#6B7280' }}>Devices</p>
+                      <div className="flex flex-col gap-3">
+                        {deviceStats.map(d => {
+                          const total = deviceStats.reduce((a, b) => a + b.count, 0)
+                          const pct = total > 0 ? Math.round((d.count / total) * 100) : 0
+                          const emoji = d.device === 'mobile' ? '📱' : d.device === 'tablet' ? '📟' : '🖥️'
+                          return (
+                            <div key={d.device}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-sm font-medium capitalize" style={{ color: '#F1F5F9' }}>
+                                  {emoji} {d.device}
+                                </span>
+                                <span className="text-xs font-bold" style={{ color: '#9CA3AF' }}>
+                                  {d.count} · {pct}%
+                                </span>
+                              </div>
+                              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#2D2D3F' }}>
+                                <div className="h-full rounded-full" style={{
+                                  width: `${pct}%`,
+                                  background: d.device === 'mobile' ? '#E8654A' : d.device === 'tablet' ? '#F59E0B' : '#3B82F6',
+                                }} />
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Country breakdown */}
+                    <div className="rounded-2xl p-5" style={{ background: '#1A1A2E', border: '1px solid #2D2D3F' }}>
+                      <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: '#6B7280' }}>
+                        Top Countries
+                      </p>
+                      <div className="flex flex-col gap-2.5">
+                        {countryStats.slice(0, 8).map(c => {
+                          const total = countryStats.reduce((a, b) => a + b.count, 0)
+                          const pct = total > 0 ? Math.round((c.count / total) * 100) : 0
+                          const flag = c.country_code !== 'XX'
+                            ? String.fromCodePoint(...c.country_code.toUpperCase().split('').map(ch => 0x1F1E0 - 65 + ch.charCodeAt(0)))
+                            : '🌐'
+                          return (
+                            <div key={c.country_code}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-sm font-medium" style={{ color: '#F1F5F9' }}>
+                                  {flag} {c.country_code === 'XX' ? 'Unknown' : c.country_code}
+                                </span>
+                                <span className="text-xs font-bold" style={{ color: '#9CA3AF' }}>
+                                  {c.count} · {pct}%
+                                </span>
+                              </div>
+                              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#2D2D3F' }}>
+                                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#10B981' }} />
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
