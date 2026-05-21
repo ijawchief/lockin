@@ -221,10 +221,10 @@ export default function OnboardingPage() {
                 Hey {userName} 👋
               </h1>
               <p className="text-base leading-relaxed" style={{ color: '#9CA3AF' }}>
-                Before you start, let's make LockIn feel like it was built just for you.
+                Most people lose 3+ hours a day to things that don't matter.
               </p>
-              <p className="text-sm mt-2" style={{ color: '#4B5563' }}>
-                4 quick questions. Takes 30 seconds.
+              <p className="text-base leading-relaxed mt-2" style={{ color: '#9CA3AF' }}>
+                Tell us what's in your way — and we'll show you exactly how to get it out.
               </p>
             </div>
             <button
