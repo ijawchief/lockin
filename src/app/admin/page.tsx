@@ -105,6 +105,8 @@ function Spinner() {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
+type UserAction = { type: 'email' | 'reset' | 'delete'; user: TopUser }
+
 export default function AdminPage() {
   const router = useRouter()
   const [authState, setAuthState] = useState<'loading' | 'unauthorized' | 'ready'>('loading')
@@ -113,6 +115,12 @@ export default function AdminPage() {
   const [dailyStats, setDailyStats] = useState<DailyStat[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [tab, setTab] = useState<'overview' | 'users' | 'growth'>('overview')
+  const [action, setAction] = useState<UserAction | null>(null)
+  const [actionInput, setActionInput] = useState('')
+  const [actionLoading, setActionLoading] = useState(false)
+  const [actionError, setActionError] = useState('')
+  const [actionSuccess, setActionSuccess] = useState('')
+  const [openMenu, setOpenMenu] = useState<string | null>(null)
 
   useEffect(() => {
     checkAuth()
@@ -158,6 +166,61 @@ export default function AdminPage() {
   async function signOut() {
     await supabase.auth.signOut()
     router.push('/login')
+  }
+
+  function openAction(type: UserAction['type'], user: TopUser) {
+    setAction({ type, user })
+    setActionInput(type === 'email' ? user.name : '')
+    setActionError('')
+    setActionSuccess('')
+    setOpenMenu(null)
+  }
+
+  async function runAction() {
+    if (!action) return
+    setActionLoading(true)
+    setActionError('')
+    setActionSuccess('')
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token ?? ''
+    const base = `/api/admin/users/${action.user.user_id}`
+
+    let res: Response
+    if (action.type === 'delete') {
+      res = await fetch(base, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    } else if (action.type === 'email') {
+      res = await fetch(base, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: actionInput }),
+      })
+    } else {
+      // reset password
+      res = await fetch(base, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: actionInput }),
+      })
+    }
+
+    const json = await res.json()
+    setActionLoading(false)
+
+    if (!res.ok) {
+      setActionError(json.error ?? 'Something went wrong')
+      return
+    }
+
+    if (action.type === 'delete') {
+      setTopUsers(prev => prev.filter(u => u.user_id !== action.user.user_id))
+    }
+    setActionSuccess(
+      action.type === 'delete' ? 'Account deleted.' :
+      action.type === 'email' ? 'Email updated.' :
+      'Password reset link sent.'
+    )
+    setTimeout(() => setAction(null), 1500)
   }
 
   if (authState === 'loading') return <Spinner />
@@ -353,14 +416,14 @@ export default function AdminPage() {
               >
                 <div className="px-6 py-4" style={{ borderBottom: '1px solid #2D2D3F' }}>
                   <p className="text-xs font-bold uppercase tracking-widest" style={{ color: '#6B7280' }}>
-                    Top Users by Total Pomos — Top {topUsers.length}
+                    All Users — Top {topUsers.length} by Pomos
                   </p>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr style={{ borderBottom: '1px solid #2D2D3F' }}>
-                        {['#', 'User', 'Total 🍅', '7d 🍅', 'Tasks Done', 'Joined'].map(h => (
+                        {['#', 'User', 'Total 🍅', '7d 🍅', 'Tasks Done', 'Joined', ''].map(h => (
                           <th key={h} className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider" style={{ color: '#6B7280' }}>
                             {h}
                           </th>
@@ -375,10 +438,8 @@ export default function AdminPage() {
                           className="transition-colors hover:bg-white/5"
                         >
                           <td className="px-6 py-4">
-                            <span
-                              className="text-sm font-bold"
-                              style={{ color: i === 0 ? '#F59E0B' : i === 1 ? '#9CA3AF' : i === 2 ? '#CD7F32' : '#4B5563' }}
-                            >
+                            <span className="text-sm font-bold"
+                              style={{ color: i === 0 ? '#F59E0B' : i === 1 ? '#9CA3AF' : i === 2 ? '#CD7F32' : '#4B5563' }}>
                               {i + 1}
                             </span>
                           </td>
@@ -410,6 +471,50 @@ export default function AdminPage() {
                             <span className="text-xs" style={{ color: '#6B7280' }}>
                               {new Date(u.joined_at).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
                             </span>
+                          </td>
+                          {/* Actions */}
+                          <td className="px-4 py-4">
+                            <div className="relative">
+                              <button
+                                onClick={() => setOpenMenu(openMenu === u.user_id ? null : u.user_id)}
+                                className="w-8 h-8 rounded-lg flex items-center justify-center text-lg transition-colors hover:bg-white/10"
+                                style={{ color: '#6B7280' }}
+                              >
+                                ⋯
+                              </button>
+                              {openMenu === u.user_id && (
+                                <>
+                                  <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} />
+                                  <div
+                                    className="absolute right-0 top-9 rounded-xl shadow-xl border z-20 py-1 min-w-44"
+                                    style={{ background: '#1E1E32', borderColor: '#2D2D3F' }}
+                                  >
+                                    <button
+                                      onClick={() => openAction('email', u)}
+                                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-white/5 text-left"
+                                      style={{ color: '#F1F5F9' }}
+                                    >
+                                      ✏️ Change email
+                                    </button>
+                                    <button
+                                      onClick={() => openAction('reset', u)}
+                                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-white/5 text-left"
+                                      style={{ color: '#F1F5F9' }}
+                                    >
+                                      🔑 Send reset link
+                                    </button>
+                                    <div style={{ borderTop: '1px solid #2D2D3F', margin: '4px 0' }} />
+                                    <button
+                                      onClick={() => openAction('delete', u)}
+                                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-red-500/10 text-left"
+                                      style={{ color: '#EF4444' }}
+                                    >
+                                      🗑 Delete account
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -536,6 +641,107 @@ export default function AdminPage() {
           </>
         )}
       </div>
+
+      {/* ── Action Modal ── */}
+      {action && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.7)' }}
+          onClick={() => !actionLoading && setAction(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl p-6"
+            style={{ background: '#1A1A2E', border: '1px solid #2D2D3F' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* User info */}
+            <div className="flex items-center gap-3 mb-5">
+              <Avatar name={action.user.name} url={action.user.avatar_url} size={40} />
+              <div>
+                <p className="text-sm font-bold" style={{ color: '#F1F5F9' }}>{action.user.name}</p>
+                <p className="text-xs" style={{ color: '#6B7280' }}>@{action.user.username}</p>
+              </div>
+            </div>
+
+            {action.type === 'delete' && (
+              <>
+                <h3 className="text-base font-black mb-1" style={{ color: '#EF4444' }}>Delete account?</h3>
+                <p className="text-sm mb-5" style={{ color: '#9CA3AF' }}>
+                  This permanently removes their account, profile, and all data. This cannot be undone.
+                </p>
+              </>
+            )}
+
+            {action.type === 'email' && (
+              <>
+                <h3 className="text-base font-black mb-1" style={{ color: '#F1F5F9' }}>Change email</h3>
+                <p className="text-sm mb-4" style={{ color: '#9CA3AF' }}>Enter the new email address for this account.</p>
+                <input
+                  type="email"
+                  placeholder="New email address"
+                  value={actionInput}
+                  onChange={e => setActionInput(e.target.value)}
+                  className="w-full rounded-xl px-4 py-3 text-sm mb-4 outline-none"
+                  style={{ background: '#0F0F14', border: '1px solid #2D2D3F', color: '#F1F5F9' }}
+                  disabled={actionLoading}
+                />
+              </>
+            )}
+
+            {action.type === 'reset' && (
+              <>
+                <h3 className="text-base font-black mb-1" style={{ color: '#F1F5F9' }}>Send password reset</h3>
+                <p className="text-sm mb-4" style={{ color: '#9CA3AF' }}>Enter the email to send the reset link to.</p>
+                <input
+                  type="email"
+                  placeholder="User's email address"
+                  value={actionInput}
+                  onChange={e => setActionInput(e.target.value)}
+                  className="w-full rounded-xl px-4 py-3 text-sm mb-4 outline-none"
+                  style={{ background: '#0F0F14', border: '1px solid #2D2D3F', color: '#F1F5F9' }}
+                  disabled={actionLoading}
+                />
+              </>
+            )}
+
+            {actionError && (
+              <p className="text-xs mb-3 px-3 py-2 rounded-lg" style={{ color: '#EF4444', background: '#EF444415' }}>
+                {actionError}
+              </p>
+            )}
+            {actionSuccess && (
+              <p className="text-xs mb-3 px-3 py-2 rounded-lg" style={{ color: '#10B981', background: '#10B98115' }}>
+                ✓ {actionSuccess}
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setAction(null)}
+                disabled={actionLoading}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+                style={{ background: '#2D2D3F', color: '#9CA3AF' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={runAction}
+                disabled={actionLoading || (action.type !== 'delete' && !actionInput.trim())}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-opacity disabled:opacity-50"
+                style={{
+                  background: action.type === 'delete' ? '#EF4444' : '#E8654A',
+                  color: 'white',
+                }}
+              >
+                {actionLoading ? '…' :
+                  action.type === 'delete' ? 'Delete' :
+                  action.type === 'email' ? 'Update email' :
+                  'Send link'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
