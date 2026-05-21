@@ -530,6 +530,131 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── PRICING ── */}
+      <section id="pricing" style={{ padding: '96px 24px', background: '#F8F9FA' }}>
+        <div style={{ maxWidth: 560, margin: '0 auto', textAlign: 'center' }}>
+          <div style={{ display: 'inline-block', background: '#FFF0EC', borderRadius: 100, padding: '6px 16px', marginBottom: 24 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--primary)' }}>Pricing</span>
+          </div>
+          <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em', marginBottom: 12 }}>
+            Free. For real.
+          </h2>
+          <p style={{ color: '#6B7280', fontSize: 18, marginBottom: 48, lineHeight: 1.6 }}>
+            The first 100 users get LockIn free — forever. No trials. No credit card.
+          </p>
+
+          <div style={{
+            background: 'white', borderRadius: 24, padding: '40px 36px',
+            border: '2px solid var(--primary)', boxShadow: '0 20px 60px rgba(232,101,74,0.12)',
+            position: 'relative', overflow: 'hidden',
+          }}>
+            {/* Badge */}
+            <div style={{
+              position: 'absolute', top: 20, right: 20,
+              background: 'var(--primary)', color: 'white',
+              fontSize: 11, fontWeight: 800, letterSpacing: '0.05em',
+              padding: '4px 12px', borderRadius: 100,
+            }}>
+              FOUNDERS ADVANTAGE
+            </div>
+
+            <div style={{ marginBottom: 8 }}>
+              <span style={{ fontSize: 56, fontWeight: 900, color: 'var(--text)', letterSpacing: '-0.03em' }}>$0</span>
+              <span style={{ fontSize: 16, color: '#6B7280', marginLeft: 4 }}>/month</span>
+            </div>
+            <p style={{ color: '#6B7280', fontSize: 15, marginBottom: 32 }}>
+              For the founding 100 users — locked in forever.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 36, textAlign: 'left' }}>
+              {[
+                'Unlimited pomodoro sessions',
+                'Task management with assignments',
+                'Team presence & live visibility',
+                'Projects & time tracking',
+                'Public focus profile',
+                'Reports & streak tracking',
+                'Email notifications',
+                'Everything we build next',
+              ].map(feature => (
+                <div key={feature} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Check size={12} color="white" strokeWidth={3} />
+                  </div>
+                  <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>{feature}</span>
+                </div>
+              ))}
+            </div>
+
+            <Link href="/login" style={{
+              display: 'block', background: 'var(--primary)', color: 'white',
+              textDecoration: 'none', padding: '14px', borderRadius: 14,
+              fontWeight: 700, fontSize: 16, textAlign: 'center',
+            }}>
+              Claim your free spot →
+            </Link>
+            <p style={{ color: '#9CA3AF', fontSize: 12, marginTop: 12 }}>
+              No credit card. No expiry. Just focus.
+            </p>
+          </div>
+
+          <p style={{ color: '#9CA3AF', fontSize: 13, marginTop: 24 }}>
+            After the first 100? Paid plans coming — but founders stay free.
+          </p>
+        </div>
+      </section>
+
+      {/* ── FAQ ── */}
+      <section id="faqs" style={{ padding: '96px 24px', background: 'white' }}>
+        <div style={{ maxWidth: 680, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 56 }}>
+            <div style={{ display: 'inline-block', background: '#FFF0EC', borderRadius: 100, padding: '6px 16px', marginBottom: 24 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--primary)' }}>FAQs</span>
+            </div>
+            <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em' }}>
+              Quick answers.
+            </h2>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {[
+              {
+                q: 'Is it actually free?',
+                a: 'Yes. The first 100 users get LockIn completely free — no time limit, no credit card required. It\'s our way of rewarding early believers.',
+              },
+              {
+                q: 'Does it work for solo users, not just teams?',
+                a: 'Absolutely. Most features work perfectly solo — the timer, tasks, streaks, reports, and public profile. Team features activate when you invite people.',
+              },
+              {
+                q: 'How does team visibility work?',
+                a: 'When your teammates are in the app and running a focus session, you can see who\'s locked in and what they\'re working on — in real time, without a meeting.',
+              },
+              {
+                q: 'Is my data private?',
+                a: 'Your tasks, sessions, and projects are private to you and your team. Your public profile only shows aggregate stats (total pomos, streak, level) — nothing task-specific unless you choose to share it.',
+              },
+              {
+                q: 'What devices does it work on?',
+                a: 'LockIn is a web app that works on any browser — desktop or mobile. You can add it to your home screen on iOS and Android for a native app feel.',
+              },
+              {
+                q: 'What happens after the first 100 users?',
+                a: 'We\'ll introduce paid plans for new users. Founders (the first 100) keep their free access forever — that\'s a promise.',
+              },
+            ].map(({ q, a }) => (
+              <div key={q} style={{
+                background: '#F8F9FA', borderRadius: 16, padding: '24px 28px',
+                border: '1px solid var(--border)',
+              }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{q}</h3>
+                <p style={{ color: '#6B7280', fontSize: 14, lineHeight: 1.7, margin: 0 }}>{a}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── FINAL CTA ── */}
       <section style={{ padding: '96px 24px', background: 'linear-gradient(135deg, #1A1A2E 0%, #16213E 100%)' }}>
         <div style={{ maxWidth: 680, margin: '0 auto', textAlign: 'center' }}>

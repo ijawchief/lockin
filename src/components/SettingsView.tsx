@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useApp } from '@/contexts/AppContext'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -54,12 +55,22 @@ function Toggle({ label, desc, value, onChange }: {
 }
 
 export default function SettingsView() {
-  const { settings, updateSettings, darkMode, toggleDarkMode } = useApp()
+  const { settings, updateSettings, darkMode, toggleDarkMode, profile } = useApp()
   const router = useRouter()
+  const [copied, setCopied] = useState(false)
 
   async function signOut() {
     await supabase.auth.signOut()
     router.push('/login')
+  }
+
+  async function copyInviteLink() {
+    const link = profile?.username
+      ? `https://lockinhq.co/u/${profile.username}`
+      : 'https://lockinhq.co'
+    await navigator.clipboard.writeText(link)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2500)
   }
 
   return (
@@ -125,6 +136,28 @@ export default function SettingsView() {
           value={darkMode}
           onChange={toggleDarkMode}
         />
+      </section>
+
+      <section className="card p-4 mb-4">
+        <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--muted)' }}>Invite Your Team</p>
+        <p className="text-sm mb-3" style={{ color: 'var(--muted)' }}>
+          Share your profile link — teammates see your stats and can sign up from there.
+        </p>
+        <div className="flex items-center gap-2 p-3 rounded-xl mb-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <span className="text-xs flex-1 truncate" style={{ color: 'var(--muted)' }}>
+            lockinhq.co/u/{profile?.username ?? '…'}
+          </span>
+        </div>
+        <button
+          onClick={copyInviteLink}
+          className="w-full py-2.5 rounded-xl font-semibold text-sm transition-all"
+          style={{
+            background: copied ? '#D1FAE5' : 'var(--primary)',
+            color: copied ? '#059669' : 'white',
+          }}
+        >
+          {copied ? '✓ Copied!' : '🔗 Copy invite link'}
+        </button>
       </section>
 
       <button
