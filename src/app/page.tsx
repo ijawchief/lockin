@@ -690,13 +690,15 @@ export default function LandingPage() {
           <p style={{ color: '#6B7280', fontSize: 13, margin: 0 }}>
             Built for teams that actually want to get work done.
           </p>
-          <div style={{ display: 'flex', gap: 24 }}>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
             {['Features', 'Login', 'Start Free'].map(item => (
               <Link key={item} href={item === 'Start Free' || item === 'Login' ? '/login' : '#features'}
                 style={{ color: '#9CA3AF', textDecoration: 'none', fontSize: 13, fontWeight: 500 }}>
                 {item}
               </Link>
             ))}
+            <Link href="/privacy" style={{ color: '#9CA3AF', textDecoration: 'none', fontSize: 13, fontWeight: 500 }}>Privacy</Link>
+            <Link href="/terms" style={{ color: '#9CA3AF', textDecoration: 'none', fontSize: 13, fontWeight: 500 }}>Terms</Link>
           </div>
         </div>
         <div style={{ maxWidth: 1120, margin: '24px auto 0', borderTop: '1px solid #1F2937', paddingTop: 24, textAlign: 'center' }}>
