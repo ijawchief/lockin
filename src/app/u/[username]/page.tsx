@@ -120,17 +120,28 @@ export default async function PublicProfilePage({ params }: Props) {
           )}
 
           {/* Social links */}
-          {(profile.twitter || profile.website) && (
-            <div className="flex items-center gap-3 mt-3">
+          {(profile.twitter || profile.instagram || profile.website) && (
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
               {profile.twitter && (
                 <a
                   href={`https://twitter.com/${profile.twitter.replace('@', '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs font-medium transition-opacity hover:opacity-80"
-                  style={{ color: '#1DA1F2' }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-opacity hover:opacity-80"
+                  style={{ background: '#1DA1F222', color: '#1DA1F2', border: '1px solid #1DA1F244' }}
                 >
                   𝕏 @{profile.twitter.replace('@', '')}
+                </a>
+              )}
+              {profile.instagram && (
+                <a
+                  href={`https://instagram.com/${profile.instagram.replace('@', '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-opacity hover:opacity-80"
+                  style={{ background: '#E114741A', color: '#E11474', border: '1px solid #E1147433' }}
+                >
+                  IG @{profile.instagram.replace('@', '')}
                 </a>
               )}
               {profile.website && (
@@ -138,10 +149,10 @@ export default async function PublicProfilePage({ params }: Props) {
                   href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs font-medium transition-opacity hover:opacity-80"
-                  style={{ color: '#9CA3AF' }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-opacity hover:opacity-80"
+                  style={{ background: '#2D2D3F', color: '#9CA3AF', border: '1px solid #3D3D4F' }}
                 >
-                  🔗 {profile.website.replace(/^https?:\/\//, '')}
+                  🔗 {profile.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
                 </a>
               )}
             </div>
