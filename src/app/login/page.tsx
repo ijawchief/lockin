@@ -39,6 +39,10 @@ export default function LoginPage() {
           streak: 0,
         })
         await supabase.from('settings').insert({ user_id: data.user.id })
+        router.push('/onboarding')
+        router.refresh()
+        setLoading(false)
+        return
       }
     }
     router.push('/app')
