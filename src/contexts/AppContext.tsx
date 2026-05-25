@@ -61,6 +61,8 @@ interface AppState {
   declineTask: (taskId: string) => Promise<void>
   logSession: () => Promise<void>
   dismissNotification: (id: string) => void
+  pushEnabled: boolean
+  togglePush: () => Promise<void>
 }
 
 const AppContext = createContext<AppState | null>(null)
@@ -69,6 +71,13 @@ function getDurationForMode(mode: TimerMode, settings: UserSettings): number {
   if (mode === 'pomodoro') return settings.pomo_duration * 60
   if (mode === 'short_break') return settings.short_break * 60
   return settings.long_break * 60
+}
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = atob(base64)
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)))
 }
 
 function playNotificationRing() {
@@ -128,6 +137,7 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
   const [cycleCount, setCycleCount] = useState(0)
   const [pinnedTaskId, setPinnedTaskId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<AppState['activeTab']>('timer')
+  const [pushEnabled, setPushEnabled] = useState(false)
   const [darkMode, setDarkMode] = useState<boolean>(() =>
     typeof window !== 'undefined' && localStorage.getItem('dark_mode') === 'true'
   )
@@ -156,6 +166,8 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
   modeRef.current = mode
   const isRunningRef = useRef(isRunning)
   isRunningRef.current = isRunning
+  const prevIsRunningRef = useRef(false)
+  const pushSubRef = useRef<PushSubscription | null>(null)
 
   // Auth listener
   useEffect(() => {
@@ -184,6 +196,15 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
         }).catch(() => {})
       }
     })
+
+    // Register service worker and check for existing push subscription
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(reg => {
+        reg.pushManager.getSubscription().then(sub => {
+          if (sub) { pushSubRef.current = sub; setPushEnabled(true) }
+        })
+      }).catch(() => {})
+    }
 
     // Request browser notification permission
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
@@ -268,8 +289,68 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
     }
   }, [user?.id])
 
-  // Broadcast presence when timer state changes
+  // Fire-and-forget push to another user via our API
+  async function fireTaskPush(targetUserId: string, title: string, body: string, tag: string) {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) return
+    fetch('/api/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ targetUserId, title, body, tag, url: '/app' }),
+    }).catch(() => {})
+  }
+
+  async function togglePush() {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) return
+    const reg = await navigator.serviceWorker.ready
+    if (pushEnabled) {
+      const sub = await reg.pushManager.getSubscription()
+      if (sub) {
+        const endpoint = sub.endpoint
+        await sub.unsubscribe()
+        pushSubRef.current = null
+        setPushEnabled(false)
+        fetch('/api/push/subscribe', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ endpoint }),
+        }).catch(() => {})
+      }
+    } else {
+      const permission = await Notification.requestPermission()
+      if (permission !== 'granted') return
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
+      })
+      pushSubRef.current = sub
+      setPushEnabled(true)
+      fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ subscription: sub.toJSON() }),
+      }).catch(() => {})
+    }
+  }
+
+  // Broadcast presence when timer state changes — also fire push on "started" transition
   useEffect(() => {
+    const wasRunning = prevIsRunningRef.current
+    prevIsRunningRef.current = isRunning
+    // Notify assigner when user starts working on their assigned task
+    if (!wasRunning && isRunning && pinnedTaskId && user) {
+      const pinnedTask = tasks.find(t => t.id === pinnedTaskId)
+      if (pinnedTask?.assigned_by && pinnedTask.assigned_by !== user.id) {
+        fireTaskPush(
+          pinnedTask.assigned_by,
+          '🔒 Working on it',
+          `${profile?.name ?? 'Your teammate'} started "${pinnedTask.title}"`,
+          'task-started',
+        )
+      }
+    }
     broadcastPresence()
   }, [pinnedTaskId, mode, isRunning])
 
@@ -411,8 +492,23 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
         nextCycle = cycleCount + 1
         setCycleCount(nextCycle)
         next = nextCycle % s.long_break_interval === 0 ? 'long_break' : 'short_break'
+        // Browser notification when pomo finishes (works when tab is in background)
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          new Notification('🔒 Session complete!', {
+            body: 'Locked in. Take a break — you earned it.',
+            icon: '/favicon.svg',
+            tag: 'timer-done',
+          })
+        }
       } else {
         next = 'pomodoro'
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          new Notification('⏱ Break over — lock back in', {
+            body: 'Your break is done. Time to focus.',
+            icon: '/favicon.svg',
+            tag: 'timer-done',
+          })
+        }
       }
       const duration = getDurationForMode(next, s)
       setTimeLeft(duration)
@@ -514,13 +610,32 @@ console.log('[addTask] error:', error)   // ← add this
 console.log('[addTask] data:', data)
 if (data) {
   setTasks(prev => prev.map(t => t.id === temp.id ? data : t)) // swap temp for real record
+  // Push notification to assignee
+  if (data.assigned_to && data.assigned_to !== user.id) {
+    fireTaskPush(
+      data.assigned_to,
+      '📋 New task assigned to you',
+      `"${data.title}" — ${profile?.name ?? 'Your teammate'} wants your help`,
+      'task-assigned',
+    )
+  }
 }
   }
 
 
   async function updateTask(id: string, updates: Partial<Task>) {
+    const prevTask = tasks.find(t => t.id === id)
     setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t))
     await supabase.from('tasks').update(updates).eq('id', id)
+    // Push to assigner when assignee completes the task
+    if (updates.done && !prevTask?.done && prevTask?.assigned_by && user && prevTask.assigned_by !== user.id) {
+      fireTaskPush(
+        prevTask.assigned_by,
+        '✅ Task done!',
+        `${profile?.name ?? 'Your teammate'} completed "${prevTask.title}"`,
+        'task-done',
+      )
+    }
   }
 
   async function deleteTask(id: string) {
@@ -614,6 +729,7 @@ if (data) {
       updateSettings, updateProfile, refreshSessions,
       acceptTask, declineTask, logSession,
       dismissNotification,
+      pushEnabled, togglePush,
     }}>
       {children}
     </AppContext.Provider>

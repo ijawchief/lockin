@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { sendPushToUser } from '@/lib/push'
 import type { NextRequest } from 'next/server'
 
 // Protect this endpoint so only Vercel's cron can call it
@@ -78,14 +79,21 @@ export async function GET(request: NextRequest) {
   if (error) return Response.json({ error: error.message }, { status: 500 })
   if (!usersAtRisk?.length) return Response.json({ sent: 0 })
 
-  // Send emails in parallel (batch of 10 to avoid rate limits)
+  // Send emails + push in parallel (batch of 10 to avoid rate limits)
   let sent = 0
   for (let i = 0; i < usersAtRisk.length; i += 10) {
     const batch = usersAtRisk.slice(i, i + 10)
     await Promise.all(
-      batch.map(async (u: { email: string; name: string; streak: number }) => {
+      batch.map(async (u: { id: string; email: string; name: string; streak: number }) => {
         try {
           await sendStreakAlert(u.email, u.name, u.streak)
+          // Also send push notification if they have a subscription
+          await sendPushToUser(u.id, {
+            title: `🔥 ${u.streak}-day streak on the line`,
+            body: `Don't break the chain — one session keeps it alive.`,
+            tag: 'streak-alert',
+            url: '/app',
+          }).catch(() => {})
           sent++
         } catch {}
       })

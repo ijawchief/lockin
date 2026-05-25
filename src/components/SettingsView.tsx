@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useApp } from '@/contexts/AppContext'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -55,9 +55,16 @@ function Toggle({ label, desc, value, onChange }: {
 }
 
 export default function SettingsView() {
-  const { settings, updateSettings, darkMode, toggleDarkMode, profile } = useApp()
+  const { settings, updateSettings, darkMode, toggleDarkMode, profile, pushEnabled, togglePush } = useApp()
   const router = useRouter()
   const [copied, setCopied] = useState(false)
+  const [pushSupported, setPushSupported] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'Notification' in window) {
+      setPushSupported(true)
+    }
+  }, [])
 
   async function signOut() {
     await supabase.auth.signOut()
@@ -126,6 +133,14 @@ export default function SettingsView() {
           value={settings.sound_enabled}
           onChange={v => updateSettings({ sound_enabled: v })}
         />
+        {pushSupported && (
+          <Toggle
+            label="Push Notifications"
+            desc="Task updates, streak alerts, and timer end — even when the tab is in the background"
+            value={pushEnabled}
+            onChange={() => togglePush()}
+          />
+        )}
       </section>
 
       <section className="card p-4 mb-4">
