@@ -6,6 +6,7 @@ import { useApp } from '@/contexts/AppContext'
 import { PROJECT_COLORS } from '@/lib/types'
 import { supabase } from '@/lib/supabase'
 import AddTaskModal from './AddTaskModal'
+import TaskDetailPanel from './TaskDetailPanel'
 import type { Project, Profile, Task } from '@/lib/types'
 
 function ProjectFormModal({
@@ -237,7 +238,8 @@ export default function ProjectsView() {
   const { projects, tasks, deleteProject, user, presence } = useApp()
   const [showAdd, setShowAdd] = useState(false)
   const [editProject, setEditProject] = useState<Project | null>(null)
-  const [editTask, setEditTask] = useState<Task | null>(null)
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null)
+  const [addTaskProjectId, setAddTaskProjectId] = useState<string | null>(null)
   const [membersProject, setMembersProject] = useState<Project | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
@@ -341,17 +343,21 @@ export default function ProjectsView() {
                             style={{ borderColor: t.done ? project.color : 'var(--border)', background: t.done ? project.color : 'transparent' }}>
                             {t.done && <span style={{ color: 'white', fontSize: 8 }}>✓</span>}
                           </div>
-                          <span className="flex-1 truncate" style={{ color: t.done ? 'var(--muted)' : 'var(--text)', textDecoration: t.done ? 'line-through' : 'none' }}>
+                          <span
+                            className="flex-1 truncate cursor-pointer hover:underline"
+                            style={{ color: t.done ? 'var(--muted)' : 'var(--text)', textDecoration: t.done ? 'line-through' : 'none' }}
+                            onClick={() => setDetailTaskId(t.id)}
+                          >
                             {t.title}
                           </span>
-                          {/* Show live indicator if someone is working on this task */}
+                          {/* Live indicator */}
                           {Object.values(presence).some(p => p.is_running && p.task_id === t.id) && (
                             <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#22C55E' }} title="Someone is working on this" />
                           )}
                           <button
-                            onClick={() => setEditTask(t)}
-                            className="w-6 h-6 flex items-center justify-center rounded-lg flex-shrink-0"
-                            style={{ color: 'var(--muted)', opacity: 0.5 }}
+                            onClick={() => setDetailTaskId(t.id)}
+                            className="w-6 h-6 flex items-center justify-center rounded-lg flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            style={{ color: 'var(--muted)' }}
                           >
                             <Pencil size={11} />
                           </button>
@@ -380,6 +386,15 @@ export default function ProjectsView() {
                     </div>
                   )
                 })()}
+
+                {/* Add task to this project */}
+                <button
+                  onClick={() => setAddTaskProjectId(project.id)}
+                  className="mt-2 flex items-center gap-1.5 text-xs font-medium py-1 px-1"
+                  style={{ color: project.color }}
+                >
+                  <Plus size={12} /> Add task
+                </button>
 
                 {/* Live — who is working on tasks in this project right now */}
                 {liveWorkers.length > 0 && (
@@ -419,7 +434,8 @@ export default function ProjectsView() {
 
       {showAdd && <ProjectFormModal onClose={() => setShowAdd(false)} />}
       {editProject && <ProjectFormModal project={editProject} onClose={() => setEditProject(null)} />}
-      {editTask && <AddTaskModal task={editTask} onClose={() => setEditTask(null)} />}
+      {detailTaskId && <TaskDetailPanel taskId={detailTaskId} onClose={() => setDetailTaskId(null)} />}
+      {addTaskProjectId && <AddTaskModal defaultProjectId={addTaskProjectId} onClose={() => setAddTaskProjectId(null)} />}
       {membersProject && <MembersModal project={membersProject} onClose={() => setMembersProject(null)} />}
 
       {confirmDelete && (

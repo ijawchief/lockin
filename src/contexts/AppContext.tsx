@@ -432,10 +432,22 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
 
   async function loadTasks() {
     if (!user) return
+    // Also fetch tasks from projects the user is a member of
+    const { data: memberships } = await supabase
+      .from('project_members')
+      .select('project_id')
+      .eq('user_id', user.id)
+    const memberProjectIds = (memberships ?? []).map((m: any) => m.project_id as string)
+
+    let filter = `user_id.eq.${user.id},assigned_to.eq.${user.id}`
+    if (memberProjectIds.length > 0) {
+      filter += `,project_id.in.(${memberProjectIds.join(',')})`
+    }
+
     const { data } = await supabase
       .from('tasks')
       .select('*, project:projects(*), assignee_profile:profiles!tasks_assigned_to_fkey(*)')
-      .or(`user_id.eq.${user.id},assigned_to.eq.${user.id}`)
+      .or(filter)
       .order('created_at', { ascending: false })
     if (data) setTasks(data)
   }

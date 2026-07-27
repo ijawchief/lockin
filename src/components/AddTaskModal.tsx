@@ -9,16 +9,17 @@ import type { Task, Profile } from '@/lib/types'
 interface Props {
   onClose: () => void
   task?: Task
+  defaultProjectId?: string | null
 }
 
-export default function AddTaskModal({ onClose, task }: Props) {
+export default function AddTaskModal({ onClose, task, defaultProjectId }: Props) {
   const { addTask, updateTask, projects, user } = useApp()
   const isEditing = !!task
 
   const [title, setTitle] = useState(task?.title ?? '')
   const [notes, setNotes] = useState(task?.notes ?? '')
   const [estimatedPomos, setEstimatedPomos] = useState(task?.estimated_pomos ?? 1)
-  const [projectId, setProjectId] = useState<string | null>(task?.project_id ?? null)
+  const [projectId, setProjectId] = useState<string | null>(task?.project_id ?? defaultProjectId ?? null)
   const [dueDate, setDueDate] = useState(task?.due_date ?? '')
   const [recurrence, setRecurrence] = useState<string | null>(task?.recurrence ?? null)
   const [assignee, setAssignee] = useState<Profile | null>(null)

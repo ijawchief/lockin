@@ -314,6 +314,15 @@ export default function TasksSection() {
   const myActive = myTasks.filter(t => !t.done)
   const myDone = myTasks.filter(t => t.done)
 
+  // Tasks from projects I'm a member of (but don't own and aren't assigned to me)
+  const projectMemberTasks = tasks.filter(t =>
+    t.project_id !== null &&
+    t.user_id !== user?.id &&
+    t.assigned_to !== user?.id
+  )
+  const projectActive = projectMemberTasks.filter(t => !t.done)
+  const projectDone = projectMemberTasks.filter(t => t.done)
+
   // Tasks I assigned to other people
   const assignedOut = tasks.filter(t =>
     t.assigned_by === user?.id && t.assigned_to && t.assigned_to !== user?.id
@@ -329,7 +338,7 @@ export default function TasksSection() {
     setShowConfirm(false)
   }
 
-  const hasAnything = myTasks.length > 0 || assignedActive.length > 0 || assignedDone.length > 0
+  const hasAnything = myTasks.length > 0 || assignedActive.length > 0 || assignedDone.length > 0 || projectMemberTasks.length > 0
 
   return (
     <>
@@ -368,6 +377,37 @@ export default function TasksSection() {
                   </div>
                   <div className="p-2 flex flex-col gap-2">
                     {myDone.map(t => <TaskCard key={t.id} task={t} onOpenDetail={() => setDetailTaskId(t.id)} />)}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Project Tasks (tasks from projects I'm a member of) ── */}
+              {projectMemberTasks.length > 0 && (
+                <div className="mt-3 rounded-xl overflow-hidden" style={{ border: '1.5px solid var(--border)' }}>
+                  <div className="flex items-center gap-2 px-3 py-2.5" style={{ background: 'var(--surface)' }}>
+                    <span style={{ fontSize: 14 }}>📁</span>
+                    <span className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
+                      Project Tasks
+                    </span>
+                    <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full"
+                      style={{ background: 'var(--border)', color: 'var(--muted)' }}>
+                      {projectActive.length + projectDone.length}
+                    </span>
+                  </div>
+                  <div className="p-2 flex flex-col gap-2">
+                    {projectActive.map(t => <TaskCard key={t.id} task={t} onOpenDetail={() => setDetailTaskId(t.id)} />)}
+                    {projectDone.length > 0 && (
+                      <div className="mt-1 rounded-xl overflow-hidden" style={{ border: '1.5px solid #D1FAE5' }}>
+                        <div className="px-3 py-1.5" style={{ background: '#F0FDF4' }}>
+                          <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#10B981' }}>
+                            ✓ {projectDone.length} completed
+                          </span>
+                        </div>
+                        <div className="p-2 flex flex-col gap-2">
+                          {projectDone.map(t => <TaskCard key={t.id} task={t} onOpenDetail={() => setDetailTaskId(t.id)} />)}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
