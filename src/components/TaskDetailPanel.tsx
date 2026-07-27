@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, type CSSProperties } from 'react'
 import { X, Check, Plus, ChevronDown, ChevronUp, Search } from 'lucide-react'
 import { useApp } from '@/contexts/AppContext'
 import { supabase } from '@/lib/supabase'
@@ -728,7 +728,7 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
 
 // ── Sub-components ──
 
-const counterBtn: React.CSSProperties = {
+const counterBtn: CSSProperties = {
   width: 26, height: 26, borderRadius: 6,
   border: '1px solid var(--border)', background: 'white',
   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
