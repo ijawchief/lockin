@@ -234,7 +234,7 @@ function MembersModal({ project, onClose }: { project: Project; onClose: () => v
 }
 
 export default function ProjectsView() {
-  const { projects, tasks, deleteProject, user } = useApp()
+  const { projects, tasks, deleteProject, user, presence } = useApp()
   const [showAdd, setShowAdd] = useState(false)
   const [editProject, setEditProject] = useState<Project | null>(null)
   const [editTask, setEditTask] = useState<Task | null>(null)
@@ -272,6 +272,9 @@ export default function ProjectsView() {
           {projects.map(project => {
             const projectTasks = tasks.filter(t => t.project_id === project.id)
             const doneTasks = projectTasks.filter(t => t.done)
+            const liveWorkers = Object.values(presence).filter(p =>
+              p.is_running && p.task_id && projectTasks.some(t => t.id === p.task_id)
+            )
             return (
               <div key={project.id} className="card p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -341,6 +344,10 @@ export default function ProjectsView() {
                           <span className="flex-1 truncate" style={{ color: t.done ? 'var(--muted)' : 'var(--text)', textDecoration: t.done ? 'line-through' : 'none' }}>
                             {t.title}
                           </span>
+                          {/* Show live indicator if someone is working on this task */}
+                          {Object.values(presence).some(p => p.is_running && p.task_id === t.id) && (
+                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#22C55E' }} title="Someone is working on this" />
+                          )}
                           <button
                             onClick={() => setEditTask(t)}
                             className="w-6 h-6 flex items-center justify-center rounded-lg flex-shrink-0"
@@ -373,6 +380,37 @@ export default function ProjectsView() {
                     </div>
                   )
                 })()}
+
+                {/* Live — who is working on tasks in this project right now */}
+                {liveWorkers.length > 0 && (
+                  <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                    <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: '#22C55E' }}>
+                      🟢 Live now
+                    </p>
+                    <div className="flex flex-col gap-1.5">
+                      {liveWorkers.map(p => {
+                        const task = tasks.find(t => t.id === p.task_id)
+                        return (
+                          <div key={p.user_id} className="flex items-center gap-2 text-xs">
+                            <div className="w-5 h-5 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center font-bold"
+                              style={{ background: 'var(--border)', fontSize: 10 }}>
+                              {p.avatar_url
+                                ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
+                                : p.name?.[0]?.toUpperCase()
+                              }
+                            </div>
+                            <span className="font-medium" style={{ color: 'var(--text)' }}>{p.name}</span>
+                            {task && (
+                              <span className="truncate" style={{ color: 'var(--muted)' }}>
+                                working on "{task.title}"
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )
           })}

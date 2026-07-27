@@ -45,6 +45,11 @@ const NOTIF_ICONS: Record<string, string> = {
   task_query: '⏰',
   task_assigned: '📋',
   task_comment: '💬',
+  project_activity: '📁',
+  task_added: '➕',
+  task_deleted: '🗑️',
+  task_scheduled: '📅',
+  member_added: '👥',
 }
 
 function LevelCard() {

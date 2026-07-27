@@ -300,6 +300,26 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
     }).catch(() => {})
   }
 
+  async function fireProjectActivity(projectId: string, message: string, taskId?: string) {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) return
+    fetch('/api/notifications/project-activity', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ project_id: projectId, message, task_id: taskId }),
+    }).catch(() => {})
+  }
+
+  async function awaitProjectActivity(projectId: string, message: string) {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) return
+    await fetch('/api/notifications/project-activity', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ project_id: projectId, message }),
+    }).catch(() => {})
+  }
+
   async function togglePush() {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
     const { data: { session } } = await supabase.auth.getSession()
@@ -602,24 +622,30 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
       due_date: temp.due_date,
     }).select('*, project:projects(*), assignee_profile:profiles!tasks_assigned_to_fkey(*)').single()
     if (error) {
-  console.error('[addTask]', error)
-  setTasks(prev => prev.filter(t => t.id !== temp.id)) // only roll back on hard error
-  return
-}
-console.log('[addTask] error:', error)   // ← add this
-console.log('[addTask] data:', data)
-if (data) {
-  setTasks(prev => prev.map(t => t.id === temp.id ? data : t)) // swap temp for real record
-  // Push notification to assignee
-  if (data.assigned_to && data.assigned_to !== user.id) {
-    fireTaskPush(
-      data.assigned_to,
-      '📋 New task assigned to you',
-      `"${data.title}" — ${profile?.name ?? 'Your teammate'} wants your help`,
-      'task-assigned',
-    )
-  }
-}
+      setTasks(prev => prev.filter(t => t.id !== temp.id))
+      return
+    }
+    if (data) {
+      setTasks(prev => prev.map(t => t.id === temp.id ? data : t))
+      if (data.assigned_to && data.assigned_to !== user.id) {
+        fireTaskPush(
+          data.assigned_to,
+          '📋 New task assigned to you',
+          `"${data.title}" — ${profile?.name ?? 'Your teammate'} wants your help`,
+          'task-assigned',
+        )
+      }
+      if (data.project_id) {
+        const actor = profile?.name ?? 'Someone'
+        const assigneeName = data.assigned_to && data.assigned_to !== user.id
+          ? (data.assignee_profile as any)?.name
+          : null
+        const msg = assigneeName
+          ? `${actor} added "${data.title}" and assigned it to ${assigneeName}`
+          : `${actor} added "${data.title}"`
+        fireProjectActivity(data.project_id, msg, data.id)
+      }
+    }
   }
 
 
@@ -636,9 +662,25 @@ if (data) {
         'task-done',
       )
     }
+    // Project activity notifications
+    if (prevTask?.project_id) {
+      const actor = profile?.name ?? 'Someone'
+      if (updates.done && !prevTask.done) {
+        fireProjectActivity(prevTask.project_id, `${actor} completed "${prevTask.title}"`, id)
+      } else if ('due_date' in updates && updates.due_date && updates.due_date !== prevTask.due_date) {
+        const d = new Date(updates.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        fireProjectActivity(prevTask.project_id, `${actor} scheduled "${prevTask.title}" for ${d}`, id)
+      } else if ('assigned_to' in updates && updates.assigned_to && updates.assigned_to !== prevTask.assigned_to) {
+        fireProjectActivity(prevTask.project_id, `${actor} assigned "${prevTask.title}" to a teammate`, id)
+      }
+    }
   }
 
   async function deleteTask(id: string) {
+    const prevTask = tasks.find(t => t.id === id)
+    if (prevTask?.project_id) {
+      fireProjectActivity(prevTask.project_id, `${profile?.name ?? 'Someone'} removed "${prevTask.title}"`, id)
+    }
     setTasks(prev => prev.filter(t => t.id !== id))
     await supabase.from('tasks').delete().eq('id', id)
     if (pinnedTaskId === id) pinTask(null)
@@ -672,12 +714,16 @@ if (data) {
 }
 
   async function deleteProject(id: string) {
+    const proj = projects.find(p => p.id === id)
+    // Notify members before deletion so project_members still exists in DB
+    if (proj) {
+      await awaitProjectActivity(id, `${profile?.name ?? 'Someone'} deleted project "${proj.name}"`)
+    }
     const snapshot = projects
     setProjects(prev => prev.filter(p => p.id !== id))
     setTasks(prev => prev.map(t => t.project_id === id ? { ...t, project_id: null, project: null } : t))
     const { error } = await supabase.from('projects').delete().eq('id', id)
     if (error) {
-      // Rollback — likely not the owner
       setProjects(snapshot)
     }
   }
@@ -685,12 +731,16 @@ if (data) {
   async function addProjectMember(projectId: string, query: string): Promise<string> {
     const { data } = await supabase
       .from('profiles')
-      .select('id')
+      .select('id, name')
       .or(`username.eq.${query},name.ilike.${query}`)
       .maybeSingle()
     if (!data) return 'User not found — search by their username or exact name'
     const { error } = await supabase.from('project_members').insert({ project_id: projectId, user_id: data.id })
     if (error) return error.message
+    const proj = projects.find(p => p.id === projectId)
+    if (proj) {
+      fireProjectActivity(projectId, `${profile?.name ?? 'Someone'} added ${(data as any).name} to "${proj.name}"`)
+    }
     await loadProjects()
     return ''
   }
