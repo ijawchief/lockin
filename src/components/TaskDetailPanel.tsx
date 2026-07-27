@@ -108,11 +108,11 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
   async function saveTitle() {
     setEditingTitle(false)
     const trimmed = title.trim()
-    if (trimmed && trimmed !== task.title) await updateTask(taskId, { title: trimmed })
+    if (trimmed && trimmed !== task!.title) await updateTask(taskId, { title: trimmed })
   }
 
   async function saveNotes() {
-    if (notes !== task.notes) await updateTask(taskId, { notes })
+    if (notes !== task!.notes) await updateTask(taskId, { notes })
   }
 
   async function saveDueDate(val: string) {
@@ -230,7 +230,7 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
           flexShrink: 0,
         }}>
           <button
-            onClick={() => updateTask(taskId, { done: !task.done })}
+            onClick={() => updateTask(taskId, { done: !task!.done })}
             style={{
               display: 'flex', alignItems: 'center', gap: 7,
               padding: '7px 14px', borderRadius: 8,
