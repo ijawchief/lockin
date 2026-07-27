@@ -89,6 +89,8 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
 
   if (!task) return null
 
+  const canEdit = !!(user && (task.user_id === user.id || task.assigned_to === user.id))
+
   async function loadChecklist() {
     const { data } = await supabase
       .from('task_checklist_items')
@@ -245,21 +247,32 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
           borderBottom: '1px solid var(--border)',
           flexShrink: 0,
         }}>
-          <button
-            onClick={() => updateTask(taskId, { done: !task!.done })}
-            style={{
+          {canEdit && (
+            <button
+              onClick={() => updateTask(taskId, { done: !task!.done })}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 7,
+                padding: '7px 14px', borderRadius: 8,
+                border: '2px solid',
+                borderColor: task.done ? '#10B981' : 'var(--primary)',
+                background: task.done ? '#ECFDF5' : 'white',
+                color: task.done ? '#10B981' : 'var(--primary)',
+                fontWeight: 700, fontSize: 13, cursor: 'pointer', flexShrink: 0,
+              }}
+            >
+              <Check size={14} strokeWidth={3} />
+              {task.done ? 'Completed ✓' : 'Complete Task'}
+            </button>
+          )}
+          {!canEdit && task.done && (
+            <span style={{
               display: 'flex', alignItems: 'center', gap: 7,
-              padding: '7px 14px', borderRadius: 8,
-              border: '2px solid',
-              borderColor: task.done ? '#10B981' : 'var(--primary)',
-              background: task.done ? '#ECFDF5' : 'white',
-              color: task.done ? '#10B981' : 'var(--primary)',
-              fontWeight: 700, fontSize: 13, cursor: 'pointer', flexShrink: 0,
-            }}
-          >
-            <Check size={14} strokeWidth={3} />
-            {task.done ? 'Completed ✓' : 'Complete Task'}
-          </button>
+              padding: '7px 14px', borderRadius: 8, border: '2px solid #10B981',
+              background: '#ECFDF5', color: '#10B981', fontWeight: 700, fontSize: 13,
+            }}>
+              <Check size={14} strokeWidth={3} /> Completed ✓
+            </span>
+          )}
 
           <div style={{ flex: 1 }} />
 
@@ -276,21 +289,23 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
             }}
           >📌</button>
 
-          {/* Delete */}
-          <button
-            title="Delete task"
-            onClick={async () => {
-              if (!confirm('Delete this task?')) return
-              await deleteTask(taskId)
-              onClose()
-            }}
-            style={{
-              width: 34, height: 34,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              borderRadius: 8, border: 'none', cursor: 'pointer',
-              background: 'var(--surface)', color: '#EF4444', fontSize: 18, lineHeight: 1,
-            }}
-          >🗑</button>
+          {/* Delete — only task owner */}
+          {task.user_id === user?.id && (
+            <button
+              title="Delete task"
+              onClick={async () => {
+                if (!confirm('Delete this task?')) return
+                await deleteTask(taskId)
+                onClose()
+              }}
+              style={{
+                width: 34, height: 34,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                borderRadius: 8, border: 'none', cursor: 'pointer',
+                background: 'var(--surface)', color: '#EF4444', fontSize: 18, lineHeight: 1,
+              }}
+            >🗑</button>
+          )}
 
           {/* Close */}
           <button
@@ -331,9 +346,10 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
               />
             ) : (
               <h1
-                onClick={() => setEditingTitle(true)}
+                onClick={() => canEdit && setEditingTitle(true)}
                 style={{
-                  fontSize: 22, fontWeight: 800, lineHeight: 1.3, cursor: 'text',
+                  fontSize: 22, fontWeight: 800, lineHeight: 1.3,
+                  cursor: canEdit ? 'text' : 'default',
                   color: task.done ? 'var(--muted)' : 'var(--text)',
                   textDecoration: task.done ? 'line-through' : 'none',
                   marginBottom: 0,
@@ -352,10 +368,11 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
 
             {/* Notes */}
             <textarea
-              placeholder="Click to add a description..."
+              placeholder={canEdit ? 'Click to add a description...' : ''}
+              readOnly={!canEdit}
               value={notes}
-              onChange={e => setNotes(e.target.value)}
-              onBlur={saveNotes}
+              onChange={e => canEdit && setNotes(e.target.value)}
+              onBlur={canEdit ? saveNotes : undefined}
               rows={3}
               style={{
                 width: '100%', marginTop: 14,
@@ -363,6 +380,7 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
                 fontSize: 14, lineHeight: 1.7,
                 color: notes ? 'var(--text)' : 'var(--muted)',
                 fontFamily: 'inherit', background: 'transparent',
+                cursor: canEdit ? 'text' : 'default',
               }}
             />
 
@@ -387,10 +405,11 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
                       padding: '5px 0', borderBottom: '1px solid var(--border)',
                     }}>
                       <button
-                        onClick={() => toggleCheckItem(item)}
+                        onClick={() => canEdit && toggleCheckItem(item)}
+                        disabled={!canEdit}
                         style={{
                           width: 18, height: 18, borderRadius: 4, flexShrink: 0,
-                          border: '2px solid', cursor: 'pointer',
+                          border: '2px solid', cursor: canEdit ? 'pointer' : 'default',
                           borderColor: item.done ? '#10B981' : 'var(--border)',
                           background: item.done ? '#10B981' : 'transparent',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -403,14 +422,16 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
                         color: item.done ? 'var(--muted)' : 'var(--text)',
                         textDecoration: item.done ? 'line-through' : 'none',
                       }}>{item.text}</span>
-                      <button
-                        onClick={() => deleteCheckItem(item.id)}
-                        style={{
-                          background: 'none', border: 'none', cursor: 'pointer',
-                          color: 'var(--border)', padding: 4, opacity: 0.6,
-                          display: 'flex', alignItems: 'center',
-                        }}
-                      ><X size={12} /></button>
+                      {canEdit && (
+                        <button
+                          onClick={() => deleteCheckItem(item.id)}
+                          style={{
+                            background: 'none', border: 'none', cursor: 'pointer',
+                            color: 'var(--border)', padding: 4, opacity: 0.6,
+                            display: 'flex', alignItems: 'center',
+                          }}
+                        ><X size={12} /></button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -435,7 +456,7 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
                     }}
                   />
                 </div>
-              ) : (
+              ) : canEdit ? (
                 <button
                   onClick={() => setAddingCheck(true)}
                   style={{
@@ -447,7 +468,7 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
                 >
                   <Plus size={15} /> Add checklist item
                 </button>
-              )}
+              ) : null}
             </div>
 
             {/* ── Activity / Comments ── */}
@@ -573,15 +594,11 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
             {/* Pomos */}
             <SideSection icon="🍅" label="Pomodoros">
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <button onClick={() => savePomos(estimatedPomos - 1)} style={counterBtn}>
-                  <ChevronDown size={14} />
-                </button>
+                {canEdit && <button onClick={() => savePomos(estimatedPomos - 1)} style={counterBtn}><ChevronDown size={14} /></button>}
                 <span style={{ fontWeight: 800, fontSize: 18, minWidth: 24, textAlign: 'center', color: 'var(--text)' }}>
                   {estimatedPomos}
                 </span>
-                <button onClick={() => savePomos(estimatedPomos + 1)} style={counterBtn}>
-                  <ChevronUp size={14} />
-                </button>
+                {canEdit && <button onClick={() => savePomos(estimatedPomos + 1)} style={counterBtn}><ChevronUp size={14} /></button>}
                 <span style={{ fontSize: 12, color: 'var(--muted)', marginLeft: 4 }}>
                   {task.completed_pomos}/{estimatedPomos} done
                 </span>
@@ -602,15 +619,16 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
                 type="date"
                 value={dueDate}
                 min={today}
+                disabled={!canEdit}
                 onChange={e => saveDueDate(e.target.value)}
                 style={{
                   width: '100%', padding: '6px 8px', borderRadius: 6,
                   border: '1px solid var(--border)', fontSize: 13,
                   color: dueDateColor, background: 'white', outline: 'none',
-                  fontFamily: 'inherit',
+                  fontFamily: 'inherit', opacity: canEdit ? 1 : 0.6,
                 }}
               />
-              {dueDate && (
+              {dueDate && canEdit && (
                 <button
                   onClick={() => saveDueDate('')}
                   style={{
@@ -627,7 +645,8 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
                 {([null, 'daily', 'weekdays', 'weekly', 'monthly'] as const).map(opt => (
                   <button
                     key={String(opt)}
-                    onClick={() => saveRecurrence(opt)}
+                    onClick={() => canEdit && saveRecurrence(opt)}
+                    disabled={!canEdit}
                     style={{
                       padding: '5px 10px', borderRadius: 6, fontSize: 12,
                       fontWeight: recurrence === opt ? 700 : 400,
@@ -647,9 +666,9 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
             {/* Project */}
             <SideSection icon="📁" label="Project">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <ProjChip selected={projectId === null} color="#6B7280" onClick={() => saveProject(null)}>None</ProjChip>
+                <ProjChip selected={projectId === null} color="#6B7280" onClick={() => canEdit && saveProject(null)} disabled={!canEdit}>None</ProjChip>
                 {projects.map(p => (
-                  <ProjChip key={p.id} selected={projectId === p.id} color={p.color} onClick={() => saveProject(p.id)}>
+                  <ProjChip key={p.id} selected={projectId === p.id} color={p.color} onClick={() => canEdit && saveProject(p.id)} disabled={!canEdit}>
                     {p.name}
                   </ProjChip>
                 ))}
@@ -677,9 +696,11 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
                        task.assignment_status === 'declined' ? '✗ Declined' : '⏳ Pending'}
                     </p>
                   </div>
-                  <button onClick={removeAssignee} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 2 }}>
-                    <X size={13} />
-                  </button>
+                  {canEdit && (
+                    <button onClick={removeAssignee} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 2 }}>
+                      <X size={13} />
+                    </button>
+                  )}
                 </div>
               ) : showAssignSearch ? (
                 <div style={{ position: 'relative' }}>
@@ -727,7 +748,7 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
                     </div>
                   )}
                 </div>
-              ) : (
+              ) : canEdit ? (
                 <button
                   onClick={() => setShowAssignSearch(true)}
                   style={{
@@ -738,6 +759,8 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
                 >
                   <Plus size={14} /> Assign to someone
                 </button>
+              ) : (
+                <span style={{ fontSize: 12, color: 'var(--muted)' }}>Not assigned</span>
               )}
             </SideSection>
 
@@ -789,17 +812,18 @@ function SideSection({ icon, label, children }: { icon: string; label: string; c
   )
 }
 
-function ProjChip({ selected, color, onClick, children }: {
-  selected: boolean; color: string; onClick: () => void; children: React.ReactNode
+function ProjChip({ selected, color, onClick, disabled, children }: {
+  selected: boolean; color: string; onClick: () => void; disabled?: boolean; children: React.ReactNode
 }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       style={{
         display: 'flex', alignItems: 'center', gap: 6,
         padding: '5px 10px', borderRadius: 6, border: '1px solid',
-        fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left',
-        transition: 'all 0.15s',
+        fontSize: 12, fontWeight: 600, cursor: disabled ? 'default' : 'pointer', textAlign: 'left',
+        transition: 'all 0.15s', opacity: disabled && !selected ? 0.5 : 1,
         background: selected ? color : 'white',
         color: selected ? 'white' : 'var(--text)',
         borderColor: selected ? color : 'var(--border)',

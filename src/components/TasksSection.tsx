@@ -58,6 +58,7 @@ function TaskCard({ task, onOpenDetail }: { task: Task; onOpenDetail: () => void
       setQueryState('idle')
     }
   }
+  const canEdit = task.user_id === user?.id || task.assigned_to === user?.id
   const isPinned = pinnedTaskId === task.id
   const progressPct = task.estimated_pomos > 0
     ? Math.min(100, (task.completed_pomos / task.estimated_pomos) * 100)
@@ -99,11 +100,14 @@ function TaskCard({ task, onOpenDetail }: { task: Task; onOpenDetail: () => void
     >
       {/* Checkbox */}
       <button
-        onClick={() => updateTask(task.id, { done: !task.done })}
+        onClick={() => canEdit && updateTask(task.id, { done: !task.done })}
+        disabled={!canEdit}
         className="w-5 h-5 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-all"
         style={{
           borderColor: task.done ? 'var(--primary)' : 'var(--border)',
           background: task.done ? 'var(--primary)' : 'transparent',
+          cursor: canEdit ? 'pointer' : 'default',
+          opacity: !canEdit && !task.done ? 0.4 : 1,
         }}
       >
         {task.done && <Check size={10} color="white" strokeWidth={3} />}
