@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [resetSent, setResetSent] = useState(false)
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent) {
@@ -48,6 +49,18 @@ export default function LoginPage() {
     router.push('/app')
     router.refresh()
     setLoading(false)
+  }
+
+  async function handleForgotPassword() {
+    if (!email) { setError('Enter your email above first'); return }
+    setLoading(true)
+    setError('')
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${location.origin}/reset-password`,
+    })
+    setLoading(false)
+    if (error) { setError(error.message); return }
+    setResetSent(true)
   }
 
   async function handleGoogle() {
@@ -101,6 +114,7 @@ export default function LoginPage() {
               minLength={6}
             />
             {error && <p className="text-sm text-red-500">{error}</p>}
+            {resetSent && <p className="text-sm text-green-600">Check your email — reset link sent!</p>}
             <button
               type="submit"
               className="btn-primary py-3 mt-1"
@@ -108,6 +122,17 @@ export default function LoginPage() {
             >
               {loading ? '...' : mode === 'login' ? 'Sign In' : 'Create Account'}
             </button>
+            {mode === 'login' && (
+              <button
+                type="button"
+                className="text-sm text-center mt-1"
+                style={{ color: 'var(--muted)' }}
+                onClick={handleForgotPassword}
+                disabled={loading}
+              >
+                Forgot password?
+              </button>
+            )}
           </form>
 
           <div className="flex items-center gap-3 my-4">
