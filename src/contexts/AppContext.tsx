@@ -67,6 +67,18 @@ interface AppState {
 
 const AppContext = createContext<AppState | null>(null)
 
+function nextOccurrenceDate(recurrence: string, currentDue: string | null): string {
+  const base = currentDue ? new Date(currentDue + 'T12:00:00') : new Date()
+  if (recurrence === 'daily') base.setDate(base.getDate() + 1)
+  else if (recurrence === 'weekly') base.setDate(base.getDate() + 7)
+  else if (recurrence === 'monthly') base.setMonth(base.getMonth() + 1)
+  else if (recurrence === 'weekdays') {
+    base.setDate(base.getDate() + 1)
+    while (base.getDay() === 0 || base.getDay() === 6) base.setDate(base.getDate() + 1)
+  }
+  return base.toISOString().split('T')[0]
+}
+
 function getDurationForMode(mode: TimerMode, settings: UserSettings): number {
   if (mode === 'pomodoro') return settings.pomo_duration * 60
   if (mode === 'short_break') return settings.short_break * 60
@@ -604,6 +616,7 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
       assigned_by: taskData.assigned_by ?? null,
       assignment_status: taskData.assigned_to ? 'pending' : null,
       due_date: taskData.due_date ?? null,
+      recurrence: taskData.recurrence ?? null,
       created_at: new Date().toISOString(),
       completed_at: null,
       project: projects.find(p => p.id === taskData.project_id) ?? null,
@@ -620,6 +633,7 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
       assigned_by: temp.assigned_by,
       assignment_status: temp.assignment_status,
       due_date: temp.due_date,
+      recurrence: temp.recurrence,
     }).select('*, project:projects(*), assignee_profile:profiles!tasks_assigned_to_fkey(*)').single()
     if (error) {
       setTasks(prev => prev.filter(t => t.id !== temp.id))
@@ -661,6 +675,20 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
         `${profile?.name ?? 'Your teammate'} completed "${prevTask.title}"`,
         'task-done',
       )
+    }
+    // Auto-create next occurrence for recurring tasks
+    if (updates.done && !prevTask?.done && prevTask?.recurrence) {
+      addTask({
+        title: prevTask.title,
+        notes: prevTask.notes,
+        estimated_pomos: prevTask.estimated_pomos,
+        project_id: prevTask.project_id,
+        recurrence: prevTask.recurrence,
+        due_date: nextOccurrenceDate(prevTask.recurrence, prevTask.due_date),
+        assigned_to: prevTask.assigned_to,
+        assigned_by: prevTask.assigned_by,
+        assignment_status: prevTask.assigned_to ? 'pending' : null,
+      })
     }
     // Project activity notifications
     if (prevTask?.project_id) {

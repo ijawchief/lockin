@@ -127,6 +127,13 @@ function TaskCard({ task, onOpenDetail }: { task: Task; onOpenDetail: () => void
               ▶ Working on
             </span>
           )}
+          {task.recurrence && !task.done && (
+            <span className="text-xs px-1.5 py-0.5 rounded-full flex-shrink-0"
+              style={{ background: 'var(--border)', color: 'var(--muted)' }}
+              title={`Repeats ${task.recurrence}`}>
+              🔁 {task.recurrence}
+            </span>
+          )}
         </div>
 
         {task.notes && (

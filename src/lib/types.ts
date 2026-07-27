@@ -28,6 +28,7 @@ export interface Task {
   assigned_by: string | null
   assignment_status: 'pending' | 'accepted' | 'declined' | null
   due_date: string | null
+  recurrence: 'daily' | 'weekly' | 'monthly' | 'weekdays' | null
   created_at: string
   completed_at: string | null
   // joined

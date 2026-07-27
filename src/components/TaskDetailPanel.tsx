@@ -46,6 +46,7 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
   const [title, setTitle] = useState(task?.title ?? '')
   const [notes, setNotes] = useState(task?.notes ?? '')
   const [dueDate, setDueDate] = useState(task?.due_date ?? '')
+  const [recurrence, setRecurrence] = useState<Task['recurrence']>(task?.recurrence ?? null)
   const [estimatedPomos, setEstimatedPomos] = useState(task?.estimated_pomos ?? 1)
   const [projectId, setProjectId] = useState<string | null>(task?.project_id ?? null)
   const [editingTitle, setEditingTitle] = useState(false)
@@ -81,9 +82,10 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
     setTitle(task.title)
     setNotes(task.notes ?? '')
     setDueDate(task.due_date ?? '')
+    setRecurrence(task.recurrence ?? null)
     setEstimatedPomos(task.estimated_pomos)
     setProjectId(task.project_id)
-  }, [task?.title, task?.notes, task?.due_date, task?.estimated_pomos, task?.project_id])
+  }, [task?.title, task?.notes, task?.due_date, task?.recurrence, task?.estimated_pomos, task?.project_id])
 
   if (!task) return null
 
@@ -129,6 +131,11 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
   async function saveProject(id: string | null) {
     setProjectId(id)
     await updateTask(taskId, { project_id: id })
+  }
+
+  async function saveRecurrence(val: Task['recurrence']) {
+    setRecurrence(val)
+    await updateTask(taskId, { recurrence: val })
   }
 
   async function addCheckItem() {
@@ -612,6 +619,29 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
                   }}
                 >Clear date</button>
               )}
+            </SideSection>
+
+            {/* Recurrence */}
+            <SideSection icon="🔁" label="Repeat">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {([null, 'daily', 'weekdays', 'weekly', 'monthly'] as const).map(opt => (
+                  <button
+                    key={String(opt)}
+                    onClick={() => saveRecurrence(opt)}
+                    style={{
+                      padding: '5px 10px', borderRadius: 6, fontSize: 12,
+                      fontWeight: recurrence === opt ? 700 : 400,
+                      background: recurrence === opt ? 'var(--primary)' : 'transparent',
+                      color: recurrence === opt ? 'white' : 'var(--text)',
+                      border: `1px solid ${recurrence === opt ? 'var(--primary)' : 'var(--border)'}`,
+                      cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {opt === null ? 'None' : opt.charAt(0).toUpperCase() + opt.slice(1)}
+                  </button>
+                ))}
+              </div>
             </SideSection>
 
             {/* Project */}

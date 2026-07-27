@@ -20,6 +20,7 @@ export default function AddTaskModal({ onClose, task }: Props) {
   const [estimatedPomos, setEstimatedPomos] = useState(task?.estimated_pomos ?? 1)
   const [projectId, setProjectId] = useState<string | null>(task?.project_id ?? null)
   const [dueDate, setDueDate] = useState(task?.due_date ?? '')
+  const [recurrence, setRecurrence] = useState<string | null>(task?.recurrence ?? null)
   const [assignee, setAssignee] = useState<Profile | null>(null)
   const [assignSearch, setAssignSearch] = useState('')
   const [searchResults, setSearchResults] = useState<Profile[]>([])
@@ -50,6 +51,7 @@ export default function AddTaskModal({ onClose, task }: Props) {
         estimated_pomos: estimatedPomos,
         project_id: projectId,
         due_date: dueDate || null,
+        recurrence: (recurrence as Task['recurrence']) ?? null,
         ...(assignee ? {
           assigned_to: assignee.id,
           assigned_by: user?.id,
@@ -63,6 +65,7 @@ export default function AddTaskModal({ onClose, task }: Props) {
         estimated_pomos: estimatedPomos,
         project_id: projectId,
         due_date: dueDate || null,
+        recurrence: (recurrence as Task['recurrence']) ?? null,
         ...(assignee ? {
           assigned_to: assignee.id,
           assigned_by: user?.id,
@@ -131,6 +134,27 @@ export default function AddTaskModal({ onClose, task }: Props) {
                   <ChevronUp size={16} />
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Recurrence */}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>Repeat</span>
+            <div className="flex flex-wrap gap-1.5">
+              {([null, 'daily', 'weekdays', 'weekly', 'monthly'] as const).map(opt => (
+                <button
+                  key={String(opt)}
+                  onClick={() => setRecurrence(opt)}
+                  className="px-3 py-1 rounded-full text-xs font-medium border transition-all"
+                  style={{
+                    background: recurrence === opt ? 'var(--primary)' : 'transparent',
+                    color: recurrence === opt ? 'white' : 'var(--muted)',
+                    borderColor: recurrence === opt ? 'var(--primary)' : 'var(--border)',
+                  }}
+                >
+                  {opt === null ? 'None' : opt.charAt(0).toUpperCase() + opt.slice(1)}
+                </button>
+              ))}
             </div>
           </div>
 
