@@ -160,7 +160,16 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
     const { data } = await supabase.from('task_comments').insert({
       task_id: taskId, user_id: user.id, text,
     }).select('*, author:profiles!task_comments_user_id_fkey(name, avatar_url)').single()
-    if (data) setComments(prev => [...prev, data])
+    if (data) {
+      setComments(prev => [...prev, data])
+      // Notify other task participants via inbox + push
+      const { data: { session } } = await supabase.auth.getSession()
+      fetch('/api/notifications/comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ task_id: taskId, comment_text: text }),
+      }).catch(() => {})
+    }
     setNewComment('')
     setPostingComment(false)
   }
