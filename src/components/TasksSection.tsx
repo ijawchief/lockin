@@ -5,6 +5,7 @@ import { Check, Trash2, Pin, PinOff, MoreHorizontal, Pencil, Bell } from 'lucide
 import { useApp } from '@/contexts/AppContext'
 import { supabase } from '@/lib/supabase'
 import AddTaskModal from './AddTaskModal'
+import TaskDetailPanel from './TaskDetailPanel'
 import type { Task } from '@/lib/types'
 
 function Avatar({ name, url, size = 20, title }: { name: string; url?: string | null; size?: number; title?: string }) {
@@ -29,7 +30,7 @@ function formatTime(minutes: number) {
   return m > 0 ? `${h}h ${m}m` : `${h}h`
 }
 
-function TaskCard({ task }: { task: Task }) {
+function TaskCard({ task, onOpenDetail }: { task: Task; onOpenDetail: () => void }) {
   const { updateTask, deleteTask, pinTask, pinnedTaskId, presence, profile, setActiveTab, settings, user } = useApp()
   const [showMenu, setShowMenu] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
@@ -84,10 +85,7 @@ function TaskCard({ task }: { task: Task }) {
     : null
 
   function handleCardClick() {
-    // Tap card body to toggle as active task
-    pinTask(isPinned ? null : task.id)
-    // Jump to timer tab
-    if (!isPinned) setActiveTab('timer')
+    onOpenDetail()
   }
 
   return (
@@ -286,6 +284,7 @@ export default function TasksSection() {
   const [showAdd, setShowAdd] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [showAssigned, setShowAssigned] = useState(false)
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null)
 
   // Persist a "cleared before" timestamp so the assigner can dismiss done assigned tasks
   const [assignedClearedAt, setAssignedClearedAt] = useState<Date>(() => {
@@ -346,7 +345,7 @@ export default function TasksSection() {
               {myActive.length === 0 && assignedOut.length === 0 && myDone.length === 0 && (
                 <p className="text-center py-6 text-sm" style={{ color: 'var(--muted)' }}>No active tasks</p>
               )}
-              {myActive.map(t => <TaskCard key={t.id} task={t} />)}
+              {myActive.map(t => <TaskCard key={t.id} task={t} onOpenDetail={() => setDetailTaskId(t.id)} />)}
 
               {/* ── Completed ── */}
               {myDone.length > 0 && (
@@ -361,7 +360,7 @@ export default function TasksSection() {
                     </button>
                   </div>
                   <div className="p-2 flex flex-col gap-2">
-                    {myDone.map(t => <TaskCard key={t.id} task={t} />)}
+                    {myDone.map(t => <TaskCard key={t.id} task={t} onOpenDetail={() => setDetailTaskId(t.id)} />)}
                   </div>
                 </div>
               )}
@@ -399,7 +398,7 @@ export default function TasksSection() {
                   </div>
                   {showAssigned && (
                     <div className="p-2 flex flex-col gap-2">
-                      {assignedActive.map(t => <TaskCard key={t.id} task={t} />)}
+                      {assignedActive.map(t => <TaskCard key={t.id} task={t} onOpenDetail={() => setDetailTaskId(t.id)} />)}
                       {assignedDone.length > 0 && (
                         <div className="mt-1 rounded-xl overflow-hidden" style={{ border: '1.5px solid #D1FAE5' }}>
                           <div className="px-3 py-1.5" style={{ background: '#F0FDF4' }}>
@@ -408,7 +407,7 @@ export default function TasksSection() {
                             </span>
                           </div>
                           <div className="p-2 flex flex-col gap-2">
-                            {assignedDone.map(t => <TaskCard key={t.id} task={t} />)}
+                            {assignedDone.map(t => <TaskCard key={t.id} task={t} onOpenDetail={() => setDetailTaskId(t.id)} />)}
                           </div>
                         </div>
                       )}
@@ -422,6 +421,7 @@ export default function TasksSection() {
       </div>
 
       {showAdd && <AddTaskModal onClose={() => setShowAdd(false)} />}
+      {detailTaskId && <TaskDetailPanel taskId={detailTaskId} onClose={() => setDetailTaskId(null)} />}
 
       {showConfirm && (
         <div className="modal-overlay" onClick={() => setShowConfirm(false)}>
