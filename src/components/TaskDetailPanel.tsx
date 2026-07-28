@@ -660,6 +660,27 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
                     {opt === null ? 'None' : opt.charAt(0).toUpperCase() + opt.slice(1)}
                   </button>
                 ))}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                  {(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as const).map(day => (
+                    <button
+                      key={day}
+                      onClick={() => canEdit && saveRecurrence(recurrence === day ? null : day)}
+                      disabled={!canEdit}
+                      style={{
+                        padding: '4px 8px', borderRadius: 6, fontSize: 11,
+                        fontWeight: recurrence === day ? 700 : 400,
+                        background: recurrence === day ? 'var(--primary)' : 'transparent',
+                        color: recurrence === day ? 'white' : 'var(--text)',
+                        border: `1px solid ${recurrence === day ? 'var(--primary)' : 'var(--border)'}`,
+                        cursor: canEdit ? 'pointer' : 'default', fontFamily: 'inherit',
+                        transition: 'all 0.15s',
+                        opacity: !canEdit ? 0.5 : 1,
+                      }}
+                    >
+                      {day.slice(0, 3).charAt(0).toUpperCase() + day.slice(1, 3)}
+                    </button>
+                  ))}
+                </div>
               </div>
             </SideSection>
 

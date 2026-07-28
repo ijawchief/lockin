@@ -157,6 +157,22 @@ export default function AddTaskModal({ onClose, task, defaultProjectId }: Props)
                 </button>
               ))}
             </div>
+            <div className="flex flex-wrap gap-1.5">
+              {(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as const).map(day => (
+                <button
+                  key={day}
+                  onClick={() => setRecurrence(recurrence === day ? null : day)}
+                  className="px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
+                  style={{
+                    background: recurrence === day ? 'var(--primary)' : 'transparent',
+                    color: recurrence === day ? 'white' : 'var(--muted)',
+                    borderColor: recurrence === day ? 'var(--primary)' : 'var(--border)',
+                  }}
+                >
+                  {day.slice(0, 3).charAt(0).toUpperCase() + day.slice(1, 3)}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Project */}

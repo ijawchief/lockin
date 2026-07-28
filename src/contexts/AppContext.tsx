@@ -67,6 +67,8 @@ interface AppState {
 
 const AppContext = createContext<AppState | null>(null)
 
+const DAY_NAMES = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
+
 function nextOccurrenceDate(recurrence: string, currentDue: string | null): string {
   const base = currentDue ? new Date(currentDue + 'T12:00:00') : new Date()
   if (recurrence === 'daily') base.setDate(base.getDate() + 1)
@@ -75,6 +77,13 @@ function nextOccurrenceDate(recurrence: string, currentDue: string | null): stri
   else if (recurrence === 'weekdays') {
     base.setDate(base.getDate() + 1)
     while (base.getDay() === 0 || base.getDay() === 6) base.setDate(base.getDate() + 1)
+  } else {
+    const targetDay = DAY_NAMES.indexOf(recurrence)
+    if (targetDay !== -1) {
+      let daysUntil = (targetDay - base.getDay() + 7) % 7
+      if (daysUntil === 0) daysUntil = 7
+      base.setDate(base.getDate() + daysUntil)
+    }
   }
   return base.toISOString().split('T')[0]
 }
@@ -432,16 +441,17 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
 
   async function loadTasks() {
     if (!user) return
-    // Also fetch tasks from projects the user is a member of
-    const { data: memberships } = await supabase
-      .from('project_members')
-      .select('project_id')
-      .eq('user_id', user.id)
-    const memberProjectIds = (memberships ?? []).map((m: any) => m.project_id as string)
+    const [{ data: memberships }, { data: ownedProjects }] = await Promise.all([
+      supabase.from('project_members').select('project_id').eq('user_id', user.id),
+      supabase.from('projects').select('id').eq('user_id', user.id),
+    ])
+    const projectIds = new Set<string>()
+    memberships?.forEach((m: any) => projectIds.add(m.project_id))
+    ownedProjects?.forEach((p: any) => projectIds.add(p.id))
 
     let filter = `user_id.eq.${user.id},assigned_to.eq.${user.id}`
-    if (memberProjectIds.length > 0) {
-      filter += `,project_id.in.(${memberProjectIds.join(',')})`
+    if (projectIds.size > 0) {
+      filter += `,project_id.in.(${[...projectIds].join(',')})`
     }
 
     const { data } = await supabase
