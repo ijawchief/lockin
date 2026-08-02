@@ -62,10 +62,7 @@ export default function TeamWall() {
   }
 
   function getMemberData(member: Profile) {
-    const memberTasks = tasks.filter(t =>
-      t.assigned_to === member.id ||
-      (t.user_id === member.id && t.project_id !== null)
-    )
+    const memberTasks = tasks.filter(t => t.assigned_to === member.id)
     const doneToday = memberTasks.filter(t => isEffectivelyDone(t))
     const stillToDo = memberTasks.filter(t => !isEffectivelyDone(t))
     const pres = Object.values(presence).find(p => p.user_id === member.id)
