@@ -4,12 +4,12 @@ import { CheckSquare, Users, BarChart2, Settings, Inbox } from 'lucide-react'
 import { useApp } from '@/contexts/AppContext'
 
 export default function BottomNav() {
-  const { activeTab, setActiveTab, tasks, user, isOnTeam } = useApp()
+  const { activeTab, setActiveTab, tasks, user, profile, isTeamManager } = useApp()
   const inboxCount = tasks.filter(t => t.assignment_status === 'pending' && t.assigned_to === user?.id).length
 
   const tabs = [
     { id: 'timer' as const, label: 'Tasks', Icon: CheckSquare },
-    ...(isOnTeam ? [{ id: 'projects' as const, label: 'Team', Icon: Users }] : []),
+    ...(profile?.account_type === 'team' || isTeamManager ? [{ id: 'projects' as const, label: 'Team', Icon: Users }] : []),
     { id: 'reports' as const, label: 'Reports', Icon: BarChart2 },
     { id: 'settings' as const, label: 'Settings', Icon: Settings },
     { id: 'inbox' as const, label: 'Inbox', Icon: Inbox },
