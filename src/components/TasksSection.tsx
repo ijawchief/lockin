@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Check, Trash2, Pin, PinOff, MoreHorizontal, Pencil, Bell } from 'lucide-react'
-import { useApp } from '@/contexts/AppContext'
+import { useApp, isOccurrenceRecurrence, isScheduledToday } from '@/contexts/AppContext'
 import { supabase } from '@/lib/supabase'
 import AddTaskModal from './AddTaskModal'
 import TaskDetailPanel from './TaskDetailPanel'
@@ -31,7 +31,11 @@ function formatTime(minutes: number) {
 }
 
 function TaskCard({ task, onOpenDetail }: { task: Task; onOpenDetail: () => void }) {
-  const { updateTask, deleteTask, pinTask, pinnedTaskId, presence, profile, setActiveTab, settings, user } = useApp()
+  const { updateTask, deleteTask, pinTask, pinnedTaskId, presence, profile, setActiveTab, settings, user, todayCompletions, toggleRecurringDone } = useApp()
+  const isOccurrence = isOccurrenceRecurrence(task.recurrence)
+  const todayCompletion = isOccurrence ? todayCompletions.find(c => c.task_id === task.id) : undefined
+  const isDoneToday = isOccurrence ? !!todayCompletion : task.done
+  const completedByOther = !!(todayCompletion && todayCompletion.completed_by !== user?.id)
   const [showMenu, setShowMenu] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [queryState, setQueryState] = useState<'idle' | 'sending' | 'sent'>('idle')
@@ -100,17 +104,17 @@ function TaskCard({ task, onOpenDetail }: { task: Task; onOpenDetail: () => void
     >
       {/* Checkbox */}
       <button
-        onClick={() => canEdit && updateTask(task.id, { done: !task.done })}
-        disabled={!canEdit}
+        onClick={() => canEdit && (isOccurrence ? toggleRecurringDone(task.id) : updateTask(task.id, { done: !task.done }))}
+        disabled={!canEdit && !completedByOther}
         className="w-5 h-5 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-all"
         style={{
-          borderColor: task.done ? 'var(--primary)' : 'var(--border)',
-          background: task.done ? 'var(--primary)' : 'transparent',
+          borderColor: isDoneToday ? 'var(--primary)' : 'var(--border)',
+          background: isDoneToday ? 'var(--primary)' : 'transparent',
           cursor: canEdit ? 'pointer' : 'default',
-          opacity: !canEdit && !task.done ? 0.4 : 1,
+          opacity: !canEdit && !isDoneToday ? 0.4 : 1,
         }}
       >
-        {task.done && <Check size={10} color="white" strokeWidth={3} />}
+        {isDoneToday && <Check size={10} color="white" strokeWidth={3} />}
       </button>
 
       {/* Content — tappable to set as working task */}
@@ -119,12 +123,18 @@ function TaskCard({ task, onOpenDetail }: { task: Task; onOpenDetail: () => void
           <p
             className="text-sm font-medium"
             style={{
-              color: task.done ? 'var(--muted)' : 'var(--text)',
-              textDecoration: task.done ? 'line-through' : 'none',
+              color: isDoneToday ? 'var(--muted)' : 'var(--text)',
+              textDecoration: isDoneToday ? 'line-through' : 'none',
             }}
           >
             {task.title}
           </p>
+          {completedByOther && (
+            <span className="text-xs px-1.5 py-0.5 rounded-full flex-shrink-0"
+              style={{ background: '#D1FAE5', color: '#059669' }}>
+              ✓ done by teammate
+            </span>
+          )}
           {isPinned && (
             <span className="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
               style={{ background: 'var(--primary)', color: 'white' }}>
@@ -156,7 +166,7 @@ function TaskCard({ task, onOpenDetail }: { task: Task; onOpenDetail: () => void
           </span>
 
           {/* Due date */}
-          {dueDateColor && !task.done && (
+          {dueDateColor && !isDoneToday && (
             <span className="text-xs px-2 py-0.5 rounded-full font-medium"
               style={{ background: dueDateColor.bg, color: dueDateColor.color }}>
               {dueDateColor.label}{new Date(task.due_date + 'T00:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric' })}
@@ -195,7 +205,7 @@ function TaskCard({ task, onOpenDetail }: { task: Task; onOpenDetail: () => void
           )}
         </div>
 
-        {!task.done && task.estimated_pomos > 0 && (
+        {!isDoneToday && task.estimated_pomos > 0 && (
           <div className="mt-1.5 h-1 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
             <div className="h-full rounded-full"
               style={{ width: `${progressPct}%`, background: 'var(--primary)', transition: 'width 0.3s ease' }} />
@@ -291,7 +301,7 @@ function TaskCard({ task, onOpenDetail }: { task: Task; onOpenDetail: () => void
 }
 
 export default function TasksSection() {
-  const { tasks, updateTask, deleteTask, user } = useApp()
+  const { tasks, updateTask, deleteTask, user, todayCompletions } = useApp()
   const [showAdd, setShowAdd] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [showAssigned, setShowAssigned] = useState(false)
@@ -315,8 +325,14 @@ export default function TasksSection() {
     (t.user_id === user?.id && (!t.assigned_to || t.assigned_to === user?.id)) ||
     (t.assigned_to === user?.id && t.assignment_status === 'accepted')
   )
-  const myActive = myTasks.filter(t => !t.done)
-  const myDone = myTasks.filter(t => t.done)
+
+  function isEffectivelyDone(t: Task): boolean {
+    if (isOccurrenceRecurrence(t.recurrence)) return todayCompletions.some(c => c.task_id === t.id)
+    return t.done
+  }
+
+  const myActive = myTasks.filter(t => !isEffectivelyDone(t) && isScheduledToday(t))
+  const myDone = myTasks.filter(t => isEffectivelyDone(t))
 
   // Tasks I assigned to other people
   const assignedOut = tasks.filter(t =>
@@ -329,7 +345,7 @@ export default function TasksSection() {
   )
 
   async function clearFinished() {
-    for (const t of myDone) await deleteTask(t.id)
+    for (const t of myDone.filter(t => !isOccurrenceRecurrence(t.recurrence))) await deleteTask(t.id)
     setShowConfirm(false)
   }
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, type CSSProperties } from 'react'
 import { X, Check, Plus, ChevronDown, ChevronUp, Search } from 'lucide-react'
-import { useApp } from '@/contexts/AppContext'
+import { useApp, isOccurrenceRecurrence } from '@/contexts/AppContext'
 import { supabase } from '@/lib/supabase'
 import type { Task, Profile } from '@/lib/types'
 
@@ -39,7 +39,7 @@ function timeAgo(date: string) {
 }
 
 export default function TaskDetailPanel({ taskId, onClose }: Props) {
-  const { tasks, updateTask, deleteTask, pinTask, pinnedTaskId, projects, user, profile } = useApp()
+  const { tasks, updateTask, deleteTask, pinTask, pinnedTaskId, projects, user, profile, todayCompletions, toggleRecurringDone } = useApp()
   const task = tasks.find(t => t.id === taskId)
 
   // Local editable state — stays in sync with task prop
@@ -90,6 +90,9 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
   if (!task) return null
 
   const canEdit = !!(user && (task.user_id === user.id || task.assigned_to === user.id))
+  const isOccurrence = isOccurrenceRecurrence(task.recurrence)
+  const todayCompletion = isOccurrence ? todayCompletions.find(c => c.task_id === taskId) : undefined
+  const isDoneToday = isOccurrence ? !!todayCompletion : task.done
 
   async function loadChecklist() {
     const { data } = await supabase
@@ -249,28 +252,28 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
         }}>
           {canEdit && (
             <button
-              onClick={() => updateTask(taskId, { done: !task!.done })}
+              onClick={() => isOccurrence ? toggleRecurringDone(taskId) : updateTask(taskId, { done: !task!.done })}
               style={{
                 display: 'flex', alignItems: 'center', gap: 7,
                 padding: '7px 14px', borderRadius: 8,
                 border: '2px solid',
-                borderColor: task.done ? '#10B981' : 'var(--primary)',
-                background: task.done ? '#ECFDF5' : 'white',
-                color: task.done ? '#10B981' : 'var(--primary)',
+                borderColor: isDoneToday ? '#10B981' : 'var(--primary)',
+                background: isDoneToday ? '#ECFDF5' : 'white',
+                color: isDoneToday ? '#10B981' : 'var(--primary)',
                 fontWeight: 700, fontSize: 13, cursor: 'pointer', flexShrink: 0,
               }}
             >
               <Check size={14} strokeWidth={3} />
-              {task.done ? 'Completed ✓' : 'Complete Task'}
+              {isDoneToday ? (isOccurrence ? 'Done Today ✓' : 'Completed ✓') : 'Complete Task'}
             </button>
           )}
-          {!canEdit && task.done && (
+          {!canEdit && isDoneToday && (
             <span style={{
               display: 'flex', alignItems: 'center', gap: 7,
               padding: '7px 14px', borderRadius: 8, border: '2px solid #10B981',
               background: '#ECFDF5', color: '#10B981', fontWeight: 700, fontSize: 13,
             }}>
-              <Check size={14} strokeWidth={3} /> Completed ✓
+              <Check size={14} strokeWidth={3} /> {isOccurrence ? 'Done Today ✓' : 'Completed ✓'}
             </span>
           )}
 

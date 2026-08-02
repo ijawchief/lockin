@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { Profile, Task, Project, Session, UserSettings, TimerMode } from '@/lib/types'
+import type { Profile, Task, Project, Session, UserSettings, TimerMode, TaskCompletion } from '@/lib/types'
 import { DEFAULT_SETTINGS } from '@/lib/types'
 import type { User, RealtimeChannel } from '@supabase/supabase-js'
 
@@ -63,11 +63,26 @@ interface AppState {
   dismissNotification: (id: string) => void
   pushEnabled: boolean
   togglePush: () => Promise<void>
+  todayCompletions: TaskCompletion[]
+  toggleRecurringDone: (taskId: string) => Promise<void>
 }
 
 const AppContext = createContext<AppState | null>(null)
 
 const DAY_NAMES = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
+
+export function isOccurrenceRecurrence(rec: string | null | undefined): boolean {
+  if (!rec) return false
+  return rec === 'daily' || rec === 'weekdays' || DAY_NAMES.includes(rec)
+}
+
+export function isScheduledToday(task: Task): boolean {
+  if (!task.recurrence || !isOccurrenceRecurrence(task.recurrence)) return true
+  const dow = new Date().getDay()
+  if (task.recurrence === 'daily') return true
+  if (task.recurrence === 'weekdays') return dow >= 1 && dow <= 5
+  return dow === DAY_NAMES.indexOf(task.recurrence)
+}
 
 function nextOccurrenceDate(recurrence: string, currentDue: string | null): string {
   const base = currentDue ? new Date(currentDue + 'T12:00:00') : new Date()
@@ -159,6 +174,7 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
   const [pinnedTaskId, setPinnedTaskId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<AppState['activeTab']>('timer')
   const [pushEnabled, setPushEnabled] = useState(false)
+  const [todayCompletions, setTodayCompletions] = useState<TaskCompletion[]>([])
   const [darkMode, setDarkMode] = useState<boolean>(() =>
     typeof window !== 'undefined' && localStorage.getItem('dark_mode') === 'true'
   )
@@ -206,6 +222,7 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
     loadProjects()
     loadSettings()
     refreshSessions()
+    loadTodayCompletions()
     setupPresence()
 
     // Fire-and-forget device/country tracking
@@ -301,6 +318,8 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
           .single()
         if (data) setTasks(prev => prev.map(t => t.id === data.id ? data : t))
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'task_completions' },
+        () => loadTodayCompletions())
       .subscribe()
     notifChannelRef.current = notifCh
 
@@ -622,6 +641,38 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
     setNotifications(prev => prev.filter(n => n.id !== id))
   }
 
+  async function loadTodayCompletions() {
+    if (!user) return
+    const today = new Date().toISOString().split('T')[0]
+    const { data } = await supabase.from('task_completions').select('*').eq('date', today)
+    if (data) setTodayCompletions(data)
+  }
+
+  async function toggleRecurringDone(taskId: string) {
+    if (!user) return
+    const today = new Date().toISOString().split('T')[0]
+    const existing = todayCompletions.find(c => c.task_id === taskId)
+    if (existing) {
+      setTodayCompletions(prev => prev.filter(c => c.id !== existing.id))
+      await supabase.from('task_completions').delete().eq('id', existing.id)
+    } else {
+      const tempId = crypto.randomUUID()
+      setTodayCompletions(prev => [...prev, { id: tempId, task_id: taskId, completed_by: user.id, date: today, created_at: new Date().toISOString() }])
+      const { data } = await supabase.from('task_completions')
+        .insert({ task_id: taskId, completed_by: user.id, date: today })
+        .select('*').single()
+      if (data) {
+        setTodayCompletions(prev => prev.map(c => c.id === tempId ? data : c))
+        const task = tasks.find(t => t.id === taskId)
+        if (task?.project_id) {
+          fireProjectActivity(task.project_id, `${profile?.name ?? 'Someone'} completed "${task.title}"`, taskId)
+        }
+      } else {
+        setTodayCompletions(prev => prev.filter(c => c.id !== tempId))
+      }
+    }
+  }
+
   async function addTask(taskData: Partial<Task>) {
     if (!user) return
     const temp: Task = {
@@ -698,8 +749,9 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
         'task-done',
       )
     }
-    // Auto-create next occurrence for recurring tasks
-    if (updates.done && !prevTask?.done && prevTask?.recurrence) {
+    // Auto-create next occurrence for spawn-model recurring tasks only (weekly, monthly)
+    if (updates.done && !prevTask?.done && prevTask?.recurrence &&
+        (prevTask.recurrence === 'weekly' || prevTask.recurrence === 'monthly')) {
       addTask({
         title: prevTask.title,
         notes: prevTask.notes,
@@ -712,10 +764,10 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
         assignment_status: prevTask.assigned_to ? 'pending' : null,
       })
     }
-    // Project activity notifications
+    // Project activity notifications (occurrence tasks fire from toggleRecurringDone instead)
     if (prevTask?.project_id) {
       const actor = profile?.name ?? 'Someone'
-      if (updates.done && !prevTask.done) {
+      if (updates.done && !prevTask.done && !isOccurrenceRecurrence(prevTask.recurrence)) {
         fireProjectActivity(prevTask.project_id, `${actor} completed "${prevTask.title}"`, id)
       } else if ('due_date' in updates && updates.due_date && updates.due_date !== prevTask.due_date) {
         const d = new Date(updates.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -830,6 +882,7 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
       acceptTask, declineTask, logSession,
       dismissNotification,
       pushEnabled, togglePush,
+      todayCompletions, toggleRecurringDone,
     }}>
       {children}
     </AppContext.Provider>

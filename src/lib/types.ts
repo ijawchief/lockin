@@ -1,5 +1,13 @@
 export type TimerMode = 'pomodoro' | 'short_break' | 'long_break'
 
+export interface TaskCompletion {
+  id: string
+  task_id: string
+  completed_by: string
+  date: string
+  created_at: string
+}
+
 export interface Profile {
   id: string
   username: string
