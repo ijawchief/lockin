@@ -41,9 +41,10 @@ export interface Task {
   recurrence: 'daily' | 'weekly' | 'monthly' | 'weekdays' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday' | null
   created_at: string
   completed_at: string | null
-  // joined
+  // joined / computed
   project?: Project | null
   assignee_profile?: Profile | null
+  assigner_team_name?: string | null
 }
 
 export interface Project {

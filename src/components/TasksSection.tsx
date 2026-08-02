@@ -150,6 +150,12 @@ function TaskCard({ task, onOpenDetail }: { task: Task; onOpenDetail: () => void
           )}
         </div>
 
+        {task.assigner_team_name && (
+          <span className="inline-flex items-center gap-1 mt-0.5 text-xs font-medium px-2 py-0.5 rounded-full"
+            style={{ background: 'var(--surface)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
+            <span style={{ fontSize: 8 }}>●</span> {task.assigner_team_name}
+          </span>
+        )}
         {task.notes && (
           <p className="text-xs mt-0.5 line-clamp-1" style={{ color: 'var(--muted)' }}>{task.notes}</p>
         )}

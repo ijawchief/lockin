@@ -521,7 +521,25 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
       .select('*, project:projects(*), assignee_profile:profiles!tasks_assigned_to_fkey(*)')
       .or(filter)
       .order('created_at', { ascending: false })
-    if (data) setTasks(data)
+    if (!data) return
+
+    // Batch-fetch team names for tasks assigned by others
+    const assignerIds = [...new Set(
+      data.filter(t => t.assigned_by && t.assigned_by !== user.id).map(t => t.assigned_by as string)
+    )]
+    let teamNameMap: Record<string, string | null> = {}
+    if (assignerIds.length > 0) {
+      const { data: assignerProfiles } = await supabase
+        .from('profiles')
+        .select('id, team_name')
+        .in('id', assignerIds)
+      teamNameMap = Object.fromEntries((assignerProfiles ?? []).map((p: any) => [p.id, p.team_name ?? null]))
+    }
+
+    setTasks(data.map(t => ({
+      ...t,
+      assigner_team_name: t.assigned_by && t.assigned_by !== user.id ? (teamNameMap[t.assigned_by] ?? null) : null,
+    })))
   }
 
   async function loadProjects() {
