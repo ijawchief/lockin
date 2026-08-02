@@ -35,9 +35,16 @@ function ManageTeamModal({ onClose, onChanged }: { onClose: () => void; onChange
     setLoading(true)
     const { data } = await supabase
       .from('team_members')
-      .select('member_id, profiles:member_id(id, name, username, avatar_url)')
+      .select('member_id')
       .eq('owner_id', user?.id)
-    setMembers((data ?? []).map((r: any) => r.profiles).filter(Boolean))
+    const memberIds = (data ?? []).map((r: any) => r.member_id as string)
+    if (memberIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles').select('id, name, username, avatar_url').in('id', memberIds)
+      setMembers((profiles ?? []) as Profile[])
+    } else {
+      setMembers([])
+    }
     setLoading(false)
   }
 
@@ -159,16 +166,25 @@ export default function TeamWall() {
   const [assignTo, setAssignTo] = useState<Profile | null>(null)
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null)
 
-  useEffect(() => { loadMembers() }, [user?.id])
+  useEffect(() => { loadMembers() }, [user?.id, profile?.id])
 
   async function loadMembers() {
     if (!user) return
     const { data } = await supabase
       .from('team_members')
-      .select('member_id, profiles:member_id(id, name, username, avatar_url)')
+      .select('member_id')
       .eq('owner_id', user.id)
 
-    const teammates: Profile[] = (data ?? []).map((r: any) => r.profiles).filter(Boolean)
+    const memberIds = (data ?? []).map((r: any) => r.member_id as string)
+    let teammates: Profile[] = []
+    if (memberIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name, username, avatar_url')
+        .in('id', memberIds)
+      teammates = (profiles ?? []) as Profile[]
+    }
+
     const all: Profile[] = []
     if (profile) all.push(profile)
     teammates.forEach(t => { if (!all.some(a => a.id === t.id)) all.push(t) })
