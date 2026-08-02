@@ -10,9 +10,10 @@ interface Props {
   onClose: () => void
   task?: Task
   defaultProjectId?: string | null
+  defaultAssignee?: Profile | null
 }
 
-export default function AddTaskModal({ onClose, task, defaultProjectId }: Props) {
+export default function AddTaskModal({ onClose, task, defaultProjectId, defaultAssignee }: Props) {
   const { addTask, updateTask, projects, user } = useApp()
   const isEditing = !!task
 
@@ -22,7 +23,7 @@ export default function AddTaskModal({ onClose, task, defaultProjectId }: Props)
   const [projectId, setProjectId] = useState<string | null>(task?.project_id ?? defaultProjectId ?? null)
   const [dueDate, setDueDate] = useState(task?.due_date ?? '')
   const [recurrence, setRecurrence] = useState<string | null>(task?.recurrence ?? null)
-  const [assignee, setAssignee] = useState<Profile | null>(null)
+  const [assignee, setAssignee] = useState<Profile | null>(task?.assignee_profile ?? defaultAssignee ?? null)
   const [assignSearch, setAssignSearch] = useState('')
   const [searchResults, setSearchResults] = useState<Profile[]>([])
   const [searching, setSearching] = useState(false)

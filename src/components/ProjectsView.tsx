@@ -7,6 +7,7 @@ import { PROJECT_COLORS } from '@/lib/types'
 import { supabase } from '@/lib/supabase'
 import AddTaskModal from './AddTaskModal'
 import TaskDetailPanel from './TaskDetailPanel'
+import TeamWall from './TeamWall'
 import type { Project, Profile, Task } from '@/lib/types'
 
 function ProjectFormModal({
@@ -236,6 +237,7 @@ function MembersModal({ project, onClose }: { project: Project; onClose: () => v
 
 export default function ProjectsView() {
   const { projects, tasks, deleteProject, user, presence } = useApp()
+  const [view, setView] = useState<'wall' | 'projects'>('wall')
   const [showAdd, setShowAdd] = useState(false)
   const [editProject, setEditProject] = useState<Project | null>(null)
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null)
@@ -253,16 +255,34 @@ export default function ProjectsView() {
   }
 
   return (
-    <div className="scroll-area px-4 pt-4">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Projects</h1>
+    <div className="scroll-area pt-4">
+      {/* Header with toggle */}
+      <div className="flex items-center justify-between mb-4 px-4">
+        <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--border)' }}>
+          {(['wall', 'projects'] as const).map(v => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
+              style={{
+                background: view === v ? 'white' : 'transparent',
+                color: view === v ? 'var(--text)' : 'var(--muted)',
+                boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              }}
+            >
+              {v === 'wall' ? 'Team Wall' : 'Projects'}
+            </button>
+          ))}
+        </div>
         <button onClick={() => setShowAdd(true)} className="btn-primary px-4 py-2 text-sm flex items-center gap-1">
           <Plus size={16} /> New
         </button>
       </div>
 
-      {projects.length === 0 ? (
-        <div className="card p-8 flex flex-col items-center gap-3">
+      {view === 'wall' && <TeamWall />}
+
+      {view === 'projects' && (projects.length === 0 ? (
+        <div className="card p-8 mx-4 flex flex-col items-center gap-3">
           <div className="text-4xl">📁</div>
           <p className="text-sm" style={{ color: 'var(--muted)' }}>No projects yet</p>
           <button className="btn-primary px-5 py-2.5 text-sm" onClick={() => setShowAdd(true)}>
@@ -270,7 +290,7 @@ export default function ProjectsView() {
           </button>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 px-4">
           {projects.map(project => {
             const projectTasks = tasks.filter(t => t.project_id === project.id)
             const doneTasks = projectTasks.filter(t => t.done)
@@ -430,7 +450,7 @@ export default function ProjectsView() {
             )
           })}
         </div>
-      )}
+      ))}
 
       {showAdd && <ProjectFormModal onClose={() => setShowAdd(false)} />}
       {editProject && <ProjectFormModal project={editProject} onClose={() => setEditProject(null)} />}
