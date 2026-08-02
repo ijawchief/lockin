@@ -345,7 +345,9 @@ export default function TasksSection() {
   )
 
   async function clearFinished() {
-    for (const t of myDone.filter(t => !isOccurrenceRecurrence(t.recurrence))) await deleteTask(t.id)
+    for (const t of myDone.filter(t => !isOccurrenceRecurrence(t.recurrence) && t.user_id === user?.id)) {
+      await deleteTask(t.id)
+    }
     setShowConfirm(false)
   }
 
