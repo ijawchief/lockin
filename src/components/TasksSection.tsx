@@ -301,29 +301,15 @@ function TaskCard({ task, onOpenDetail }: { task: Task; onOpenDetail: () => void
 }
 
 export default function TasksSection() {
-  const { tasks, updateTask, deleteTask, user, todayCompletions } = useApp()
+  const { tasks, deleteTask, user, todayCompletions } = useApp()
   const [showAdd, setShowAdd] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
-  const [showAssigned, setShowAssigned] = useState(false)
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null)
 
-  // Persist a "cleared before" timestamp so the assigner can dismiss done assigned tasks
-  const [assignedClearedAt, setAssignedClearedAt] = useState<Date>(() => {
-    if (typeof window === 'undefined') return new Date(0)
-    const stored = localStorage.getItem('lockin_assigned_cleared_at')
-    return stored ? new Date(stored) : new Date(0)
-  })
-
-  function clearAssignedDone() {
-    const now = new Date()
-    localStorage.setItem('lockin_assigned_cleared_at', now.toISOString())
-    setAssignedClearedAt(now)
-  }
-
-  // My tasks: tasks I own (not assigned out) + tasks assigned TO me that I accepted
+  // My tasks: own tasks (not assigned out) + tasks assigned to me
   const myTasks = tasks.filter(t =>
     (t.user_id === user?.id && (!t.assigned_to || t.assigned_to === user?.id)) ||
-    (t.assigned_to === user?.id && t.assignment_status === 'accepted')
+    (t.assigned_to === user?.id)
   )
 
   function isEffectivelyDone(t: Task): boolean {
@@ -334,24 +320,12 @@ export default function TasksSection() {
   const myActive = myTasks.filter(t => !isEffectivelyDone(t) && isScheduledToday(t))
   const myDone = myTasks.filter(t => isEffectivelyDone(t))
 
-  // Tasks I assigned to other people
-  const assignedOut = tasks.filter(t =>
-    t.assigned_by === user?.id && t.assigned_to && t.assigned_to !== user?.id
-  )
-  const assignedActive = assignedOut.filter(t => !t.done)
-  // Only show done assigned tasks that were completed AFTER the last "clear" action
-  const assignedDone = assignedOut.filter(t =>
-    t.done && (!t.completed_at || new Date(t.completed_at) > assignedClearedAt)
-  )
-
   async function clearFinished() {
     for (const t of myDone.filter(t => !isOccurrenceRecurrence(t.recurrence) && t.user_id === user?.id)) {
       await deleteTask(t.id)
     }
     setShowConfirm(false)
   }
-
-  const hasAnything = myTasks.length > 0 || assignedActive.length > 0 || assignedDone.length > 0
 
   return (
     <>
@@ -364,19 +338,17 @@ export default function TasksSection() {
         </div>
 
         <div className="card p-3 flex flex-col gap-2">
-          {!hasAnything ? (
+          {myTasks.length === 0 ? (
             <p className="text-center py-6 text-sm" style={{ color: 'var(--muted)' }}>
               No tasks yet — add one to get started
             </p>
           ) : (
             <>
-              {/* ── My Active Tasks ── */}
-              {myActive.length === 0 && assignedOut.length === 0 && myDone.length === 0 && (
+              {myActive.length === 0 && myDone.length === 0 && (
                 <p className="text-center py-6 text-sm" style={{ color: 'var(--muted)' }}>No active tasks</p>
               )}
               {myActive.map(t => <TaskCard key={t.id} task={t} onOpenDetail={() => setDetailTaskId(t.id)} />)}
 
-              {/* ── Completed ── */}
               {myDone.length > 0 && (
                 <div className="mt-2 rounded-xl overflow-hidden" style={{ border: '1.5px solid #D1FAE5' }}>
                   <div className="flex items-center justify-between px-3 py-2" style={{ background: '#F0FDF4' }}>
@@ -393,57 +365,6 @@ export default function TasksSection() {
                   </div>
                 </div>
               )}
-
-              {/* ── Assigned to Others (collapsible) ── */}
-              {(assignedActive.length > 0 || assignedDone.length > 0) && (
-                <div className="mt-3 rounded-xl overflow-hidden" style={{ border: '1.5px solid var(--border)' }}>
-                  <div className="flex items-center gap-2 px-3 py-2.5" style={{ background: 'var(--surface)' }}>
-                    <button
-                      onClick={() => setShowAssigned(v => !v)}
-                      className="flex items-center gap-2 flex-1 min-w-0"
-                    >
-                      <span style={{ fontSize: 14 }}>👥</span>
-                      <span className="text-xs font-bold uppercase tracking-wide text-left" style={{ color: 'var(--muted)' }}>
-                        Assigned to others
-                      </span>
-                      <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full"
-                        style={{ background: 'var(--border)', color: 'var(--muted)' }}>
-                        {assignedActive.length + assignedDone.length}
-                      </span>
-                      <span className="text-xs ml-0.5" style={{ color: 'var(--muted)' }}>
-                        {showAssigned ? '▲' : '▼'}
-                      </span>
-                    </button>
-                    {/* Clear done button — only visible when there are done tasks */}
-                    {assignedDone.length > 0 && (
-                      <button
-                        onClick={clearAssignedDone}
-                        className="text-xs font-semibold px-2.5 py-1 rounded-lg flex-shrink-0 transition-all"
-                        style={{ background: '#FEE2E2', color: '#EF4444' }}
-                      >
-                        Clear done ({assignedDone.length})
-                      </button>
-                    )}
-                  </div>
-                  {showAssigned && (
-                    <div className="p-2 flex flex-col gap-2">
-                      {assignedActive.map(t => <TaskCard key={t.id} task={t} onOpenDetail={() => setDetailTaskId(t.id)} />)}
-                      {assignedDone.length > 0 && (
-                        <div className="mt-1 rounded-xl overflow-hidden" style={{ border: '1.5px solid #D1FAE5' }}>
-                          <div className="px-3 py-1.5" style={{ background: '#F0FDF4' }}>
-                            <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#10B981' }}>
-                              ✓ {assignedDone.length} completed
-                            </span>
-                          </div>
-                          <div className="p-2 flex flex-col gap-2">
-                            {assignedDone.map(t => <TaskCard key={t.id} task={t} onOpenDetail={() => setDetailTaskId(t.id)} />)}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
             </>
           )}
         </div>
@@ -456,7 +377,7 @@ export default function TasksSection() {
         <div className="modal-overlay" onClick={() => setShowConfirm(false)}>
           <div className="modal slide-up">
             <h3 className="font-bold mb-2">Clear completed tasks?</h3>
-            <p className="text-sm mb-4" style={{ color: 'var(--muted)' }}>This will unmark all completed tasks.</p>
+            <p className="text-sm mb-4" style={{ color: 'var(--muted)' }}>This will delete all your completed tasks.</p>
             <div className="flex gap-3">
               <button className="btn-ghost flex-1 py-2.5" onClick={() => setShowConfirm(false)}>Cancel</button>
               <button className="btn-primary flex-1 py-2.5 text-sm" onClick={clearFinished}>Clear</button>

@@ -74,7 +74,7 @@ function ProjectFormModal({
 }
 
 export default function ProjectsView() {
-  const { projects, tasks, deleteProject, user, profile } = useApp()
+  const { projects, tasks, deleteProject, user, profile, teamName } = useApp()
   const isTeam = profile?.account_type === 'team'
 
   const [view, setView] = useState<'wall' | 'projects'>(isTeam ? 'wall' : 'projects')
@@ -106,7 +106,7 @@ export default function ProjectsView() {
                 color: view === 'wall' ? 'white' : 'var(--muted)',
               }}
             >
-              Team Wall
+              {teamName ?? 'Team'}
             </button>
             <button
               onClick={() => setView('projects')}
@@ -149,44 +149,51 @@ export default function ProjectsView() {
                 const projectTasks = tasks.filter(t => t.project_id === project.id)
                 const doneTasks = projectTasks.filter(t => t.done)
                 return (
-                  <div key={project.id} className="card p-4">
-                    <div className="flex items-center justify-between mb-3">
+                  <div key={project.id} className="card overflow-hidden">
+                    {/* Clickable header to expand/collapse */}
+                    <button
+                      className="w-full flex items-center justify-between p-4"
+                      onClick={() => toggleExpand(project.id)}
+                    >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: project.color }} />
                         <span className="font-semibold truncate">{project.name}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
+                          style={{ background: 'var(--surface)', color: 'var(--muted)' }}>
+                          {projectTasks.length}
+                        </span>
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         {project.user_id === user?.id && (
                           <>
-                            <button
-                              onClick={() => setEditProject(project)}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg"
+                            <span
+                              onClick={e => { e.stopPropagation(); setEditProject(project) }}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer"
                               style={{ color: 'var(--muted)' }}
                               title="Edit project"
                             >
                               <Pencil size={14} />
-                            </button>
-                            <button
-                              onClick={() => setConfirmDelete(project.id)}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg"
+                            </span>
+                            <span
+                              onClick={e => { e.stopPropagation(); setConfirmDelete(project.id) }}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer"
                               style={{ color: '#EF4444' }}
                               title="Delete project"
                             >
                               <Trash2 size={15} />
-                            </button>
+                            </span>
                           </>
                         )}
+                        <span className="text-xs ml-1" style={{ color: 'var(--muted)' }}>
+                          {expandedProjects.has(project.id) ? '▲' : '▼'}
+                        </span>
                       </div>
-                    </div>
+                    </button>
 
-                    <div className="flex items-center gap-4 text-sm" style={{ color: 'var(--muted)' }}>
-                      <span>{projectTasks.length} task{projectTasks.length !== 1 ? 's' : ''}</span>
-                      {projectTasks.length > 0 && <span>{doneTasks.length} done</span>}
-                    </div>
-
+                    {/* Progress bar — always visible */}
                     {projectTasks.length > 0 && (
-                      <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
-                        <div className="h-full rounded-full" style={{
+                      <div className="h-0.5 mx-4" style={{ background: 'var(--border)' }}>
+                        <div className="h-full" style={{
                           width: `${(doneTasks.length / projectTasks.length) * 100}%`,
                           background: project.color,
                           transition: 'width 0.3s',
@@ -194,53 +201,32 @@ export default function ProjectsView() {
                       </div>
                     )}
 
-                    {projectTasks.length > 0 && (() => {
-                      const isExpanded = expandedProjects.has(project.id)
-                      const visible = isExpanded ? projectTasks : projectTasks.slice(0, 5)
-                      const hidden = projectTasks.length - 5
-                      return (
-                        <div className="mt-3 flex flex-col gap-1.5">
-                          {visible.map(t => (
-                            <div key={t.id} className="flex items-center gap-2 text-sm group">
-                              <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0"
-                                style={{ borderColor: t.done ? project.color : 'var(--border)', background: t.done ? project.color : 'transparent' }}>
-                                {t.done && <span style={{ color: 'white', fontSize: 8 }}>✓</span>}
-                              </div>
-                              <span className="flex-1 truncate" style={{ color: t.done ? 'var(--muted)' : 'var(--text)', textDecoration: t.done ? 'line-through' : 'none' }}>
-                                {t.title}
-                              </span>
-                              <button
-                                onClick={() => setEditTask(t)}
-                                className="w-6 h-6 flex items-center justify-center rounded-lg flex-shrink-0"
-                                style={{ color: 'var(--muted)', opacity: 0.5 }}
-                              >
-                                <Pencil size={11} />
-                              </button>
+                    {/* Task list — only when expanded */}
+                    {expandedProjects.has(project.id) && projectTasks.length > 0 && (
+                      <div className="px-4 pb-3 pt-3 flex flex-col gap-1.5">
+                        {projectTasks.map(t => (
+                          <div key={t.id} className="flex items-center gap-2 text-sm">
+                            <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                              style={{ borderColor: t.done ? project.color : 'var(--border)', background: t.done ? project.color : 'transparent' }}>
+                              {t.done && <span style={{ color: 'white', fontSize: 8 }}>✓</span>}
                             </div>
-                          ))}
-                          {!isExpanded && hidden > 0 && (
-                            <button
-                              onClick={() => toggleExpand(project.id)}
-                              className="text-xs font-medium mt-0.5 text-left px-0 py-1 flex items-center gap-1"
-                              style={{ color: project.color }}
+                            <span className="flex-1 truncate" style={{ color: t.done ? 'var(--muted)' : 'var(--text)', textDecoration: t.done ? 'line-through' : 'none' }}>
+                              {t.title}
+                            </span>
+                            <span
+                              onClick={() => setEditTask(t)}
+                              className="w-6 h-6 flex items-center justify-center rounded-lg flex-shrink-0 cursor-pointer"
+                              style={{ color: 'var(--muted)', opacity: 0.5 }}
                             >
-                              <span>+{hidden} more</span>
-                              <span style={{ fontSize: 10 }}>▼</span>
-                            </button>
-                          )}
-                          {isExpanded && (
-                            <button
-                              onClick={() => toggleExpand(project.id)}
-                              className="text-xs font-medium mt-0.5 text-left py-1 flex items-center gap-1"
-                              style={{ color: 'var(--muted)' }}
-                            >
-                              <span>Show less</span>
-                              <span style={{ fontSize: 10 }}>▲</span>
-                            </button>
-                          )}
-                        </div>
-                      )
-                    })()}
+                              <Pencil size={11} />
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {expandedProjects.has(project.id) && projectTasks.length === 0 && (
+                      <p className="px-4 pb-3 text-sm" style={{ color: 'var(--muted)' }}>No tasks yet</p>
+                    )}
                   </div>
                 )
               })}

@@ -1,19 +1,19 @@
 'use client'
 
-import { Timer, FolderOpen, BarChart2, Settings, Inbox } from 'lucide-react'
+import { CheckSquare, Users, BarChart2, Settings, Inbox } from 'lucide-react'
 import { useApp } from '@/contexts/AppContext'
 
-const tabs = [
-  { id: 'timer', label: 'Timer', Icon: Timer },
-  { id: 'projects', label: 'Projects', Icon: FolderOpen },
-  { id: 'reports', label: 'Reports', Icon: BarChart2 },
-  { id: 'settings', label: 'Settings', Icon: Settings },
-  { id: 'inbox', label: 'Inbox', Icon: Inbox },
-] as const
-
 export default function BottomNav() {
-  const { activeTab, setActiveTab, tasks, user } = useApp()
+  const { activeTab, setActiveTab, tasks, user, isOnTeam } = useApp()
   const inboxCount = tasks.filter(t => t.assignment_status === 'pending' && t.assigned_to === user?.id).length
+
+  const tabs = [
+    { id: 'timer' as const, label: 'Tasks', Icon: CheckSquare },
+    ...(isOnTeam ? [{ id: 'projects' as const, label: 'Team', Icon: Users }] : []),
+    { id: 'reports' as const, label: 'Reports', Icon: BarChart2 },
+    { id: 'settings' as const, label: 'Settings', Icon: Settings },
+    { id: 'inbox' as const, label: 'Inbox', Icon: Inbox },
+  ]
 
   return (
     <nav className="bottom-nav">

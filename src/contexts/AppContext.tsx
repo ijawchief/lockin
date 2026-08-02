@@ -67,6 +67,8 @@ interface AppState {
   toggleRecurringDone: (taskId: string) => Promise<void>
   switchToTeam: (teamName: string) => Promise<void>
   switchToPersonal: () => Promise<void>
+  isOnTeam: boolean
+  teamName: string | null
 }
 
 const AppContext = createContext<AppState | null>(null)
@@ -176,6 +178,8 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
   const [pinnedTaskId, setPinnedTaskId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<AppState['activeTab']>('timer')
   const [pushEnabled, setPushEnabled] = useState(false)
+  const [isOnTeam, setIsOnTeam] = useState(false)
+  const [teamName, setTeamName] = useState<string | null>(null)
   const [todayCompletions, setTodayCompletions] = useState<TaskCompletion[]>([])
   const [darkMode, setDarkMode] = useState<boolean>(() =>
     typeof window !== 'undefined' && localStorage.getItem('dark_mode') === 'true'
@@ -457,6 +461,31 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
       setProfile(data)
       profileRef.current = data
       broadcastPresence()
+
+      // Determine team membership: owner or member of any team
+      if (data.account_type === 'team') {
+        setIsOnTeam(true)
+        setTeamName(data.team_name ?? null)
+      } else {
+        const { data: membership } = await supabase
+          .from('team_members')
+          .select('owner_id')
+          .eq('member_id', user.id)
+          .limit(1)
+        if (membership && membership.length > 0) {
+          setIsOnTeam(true)
+          // Load the owner's team name
+          const { data: ownerProfile } = await supabase
+            .from('profiles')
+            .select('team_name')
+            .eq('id', membership[0].owner_id)
+            .single()
+          setTeamName(ownerProfile?.team_name ?? null)
+        } else {
+          setIsOnTeam(false)
+          setTeamName(null)
+        }
+      }
     }
   }
 
@@ -872,12 +901,16 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
   async function acceptTask(taskId: string) { await updateTask(taskId, { assignment_status: 'accepted' }) }
   async function declineTask(taskId: string) { await updateTask(taskId, { assignment_status: 'declined' }) }
 
-  async function switchToTeam(teamName: string) {
-    await updateProfile({ account_type: 'team', team_name: teamName.trim() })
+  async function switchToTeam(name: string) {
+    await updateProfile({ account_type: 'team', team_name: name.trim() })
+    setIsOnTeam(true)
+    setTeamName(name.trim())
   }
 
   async function switchToPersonal() {
     await updateProfile({ account_type: 'personal', team_name: null })
+    setIsOnTeam(false)
+    setTeamName(null)
   }
 
   return (
@@ -894,6 +927,7 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
       pushEnabled, togglePush,
       todayCompletions, toggleRecurringDone,
       switchToTeam, switchToPersonal,
+      isOnTeam, teamName,
     }}>
       {children}
     </AppContext.Provider>
