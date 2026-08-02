@@ -150,23 +150,28 @@ function TaskCard({ task, onOpenDetail }: { task: Task; onOpenDetail: () => void
           )}
         </div>
 
-        {task.assigner_team_name && (
-          <span className="inline-flex items-center gap-1 mt-0.5 text-xs font-medium px-2 py-0.5 rounded-full"
-            style={{ background: 'var(--surface)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
-            <span style={{ fontSize: 8 }}>●</span> {task.assigner_team_name}
-          </span>
+        {/* Context labels: team + project */}
+        {(task.assigner_team_name || task.project) && (
+          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+            {task.assigner_team_name && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
+                style={{ background: 'var(--surface)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
+                <span style={{ fontSize: 8 }}>●</span> {task.assigner_team_name}
+              </span>
+            )}
+            {task.project && (
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{ background: task.project.color + '22', color: task.project.color }}>
+                {task.project.name}
+              </span>
+            )}
+          </div>
         )}
         {task.notes && (
           <p className="text-xs mt-0.5 line-clamp-1" style={{ color: 'var(--muted)' }}>{task.notes}</p>
         )}
 
         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-          {task.project && (
-            <span className="text-xs px-2 py-0.5 rounded-full font-medium"
-              style={{ background: task.project.color + '22', color: task.project.color }}>
-              {task.project.name}
-            </span>
-          )}
           <span className="text-xs" style={{ color: 'var(--muted)' }}>
             🍅 {task.completed_pomos}/{task.estimated_pomos}
           </span>
