@@ -5,9 +5,9 @@ import { Plus, Trash2, X, Pencil } from 'lucide-react'
 import { useApp } from '@/contexts/AppContext'
 import { PROJECT_COLORS } from '@/lib/types'
 import { supabase } from '@/lib/supabase'
-import AddTaskModal from './AddTaskModal'
+import TaskDetailPanel from './TaskDetailPanel'
 import TeamWall from './TeamWall'
-import type { Project, Task } from '@/lib/types'
+import type { Project } from '@/lib/types'
 
 function ProjectFormModal({
   project,
@@ -81,7 +81,7 @@ export default function ProjectsView() {
   const [view, setView] = useState<'wall' | 'projects'>(canSeeWall ? 'wall' : 'projects')
   const [showAdd, setShowAdd] = useState(false)
   const [editProject, setEditProject] = useState<Project | null>(null)
-  const [editTask, setEditTask] = useState<Task | null>(null)
+  const [editTask, setEditTask] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
 
@@ -211,11 +211,15 @@ export default function ProjectsView() {
                               style={{ borderColor: t.done ? project.color : 'var(--border)', background: t.done ? project.color : 'transparent' }}>
                               {t.done && <span style={{ color: 'white', fontSize: 8 }}>✓</span>}
                             </div>
-                            <span className="flex-1 truncate" style={{ color: t.done ? 'var(--muted)' : 'var(--text)', textDecoration: t.done ? 'line-through' : 'none' }}>
+                            <button
+                              onClick={() => setEditTask(t.id)}
+                              className="flex-1 text-left truncate"
+                              style={{ color: t.done ? 'var(--muted)' : 'var(--text)', textDecoration: t.done ? 'line-through' : 'none', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'inherit', padding: 0 }}
+                            >
                               {t.title}
-                            </span>
+                            </button>
                             <span
-                              onClick={() => setEditTask(t)}
+                              onClick={() => setEditTask(t.id)}
                               className="w-6 h-6 flex items-center justify-center rounded-lg flex-shrink-0 cursor-pointer"
                               style={{ color: 'var(--muted)', opacity: 0.5 }}
                             >
@@ -238,7 +242,7 @@ export default function ProjectsView() {
 
       {showAdd && <ProjectFormModal onClose={() => setShowAdd(false)} />}
       {editProject && <ProjectFormModal project={editProject} onClose={() => setEditProject(null)} />}
-      {editTask && <AddTaskModal task={editTask} onClose={() => setEditTask(null)} />}
+      {editTask && <TaskDetailPanel taskId={editTask} onClose={() => setEditTask(null)} />}
 
       {confirmDelete && (
         <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>

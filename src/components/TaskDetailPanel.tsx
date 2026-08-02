@@ -55,6 +55,8 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
   const [checklist, setChecklist] = useState<ChecklistItem[]>([])
   const [addingCheck, setAddingCheck] = useState(false)
   const [newCheckText, setNewCheckText] = useState('')
+  const [editingItemId, setEditingItemId] = useState<string | null>(null)
+  const [editingItemText, setEditingItemText] = useState('')
 
   // Comments
   const [comments, setComments] = useState<Comment[]>([])
@@ -165,6 +167,14 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
     await supabase.from('task_checklist_items').delete().eq('id', id)
   }
 
+  async function updateCheckItem(id: string, text: string) {
+    const trimmed = text.trim()
+    setEditingItemId(null)
+    if (!trimmed || trimmed === '#') { deleteCheckItem(id); return }
+    setChecklist(prev => prev.map(c => c.id === id ? { ...c, text: trimmed } : c))
+    await supabase.from('task_checklist_items').update({ text: trimmed }).eq('id', id)
+  }
+
   async function postComment() {
     const text = newComment.trim()
     if (!text || !user) return
@@ -212,8 +222,9 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
     await updateTask(taskId, { assigned_to: null, assigned_by: null, assignment_status: null })
   }
 
-  const doneCount = checklist.filter(c => c.done).length
-  const checkPct = checklist.length > 0 ? (doneCount / checklist.length) * 100 : 0
+  const checkItems = checklist.filter(c => !c.text.startsWith('# '))
+  const doneCount = checkItems.filter(c => c.done).length
+  const checkPct = checkItems.length > 0 ? (doneCount / checkItems.length) * 100 : 0
   const today = new Date().toISOString().split('T')[0]
   const shortId = task.id.slice(0, 8).toUpperCase()
 
@@ -391,52 +402,119 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
             <div style={{ marginTop: 20 }}>
               {checklist.length > 0 && (
                 <div style={{ marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>
-                      Checklist — {doneCount}/{checklist.length}
-                    </span>
-                    <div style={{ flex: 1, height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
-                      <div style={{
-                        width: `${checkPct}%`, height: '100%',
-                        background: '#10B981', borderRadius: 2, transition: 'width 0.3s',
-                      }} />
+                  {checkItems.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                        Checklist — {doneCount}/{checkItems.length}
+                      </span>
+                      <div style={{ flex: 1, height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${checkPct}%`, height: '100%',
+                          background: '#10B981', borderRadius: 2, transition: 'width 0.3s',
+                        }} />
+                      </div>
                     </div>
-                  </div>
-                  {checklist.map(item => (
-                    <div key={item.id} style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '5px 0', borderBottom: '1px solid var(--border)',
-                    }}>
-                      <button
-                        onClick={() => canEdit && toggleCheckItem(item)}
-                        disabled={!canEdit}
-                        style={{
-                          width: 18, height: 18, borderRadius: 4, flexShrink: 0,
-                          border: '2px solid', cursor: canEdit ? 'pointer' : 'default',
-                          borderColor: item.done ? '#10B981' : 'var(--border)',
-                          background: item.done ? '#10B981' : 'transparent',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}
-                      >
-                        {item.done && <Check size={9} color="white" strokeWidth={3} />}
-                      </button>
-                      <span style={{
-                        flex: 1, fontSize: 14,
-                        color: item.done ? 'var(--muted)' : 'var(--text)',
-                        textDecoration: item.done ? 'line-through' : 'none',
-                      }}>{item.text}</span>
-                      {canEdit && (
+                  )}
+                  {checklist.map(item => {
+                    const isSection = item.text.startsWith('# ')
+                    const displayText = isSection ? item.text.slice(2) : item.text
+                    const isEditingThis = editingItemId === item.id
+
+                    if (isSection) {
+                      return (
+                        <div key={item.id} style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          paddingTop: 14, paddingBottom: 4,
+                        }}>
+                          {isEditingThis ? (
+                            <input
+                              autoFocus
+                              value={editingItemText.startsWith('# ') ? editingItemText.slice(2) : editingItemText}
+                              onChange={e => setEditingItemText('# ' + e.target.value)}
+                              onBlur={() => updateCheckItem(item.id, editingItemText)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') updateCheckItem(item.id, editingItemText)
+                                if (e.key === 'Escape') setEditingItemId(null)
+                              }}
+                              style={{
+                                flex: 1, border: 'none', borderBottom: '1px solid var(--primary)',
+                                outline: 'none', fontSize: 11, fontWeight: 700,
+                                color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.8,
+                                background: 'transparent', fontFamily: 'inherit', padding: '2px 0',
+                              }}
+                            />
+                          ) : (
+                            <span
+                              onClick={() => canEdit && (setEditingItemId(item.id), setEditingItemText(item.text))}
+                              style={{
+                                flex: 1, fontSize: 11, fontWeight: 700, color: 'var(--muted)',
+                                textTransform: 'uppercase', letterSpacing: 0.8,
+                                cursor: canEdit ? 'text' : 'default',
+                                borderBottom: '1px solid var(--border)', paddingBottom: 4,
+                              }}
+                            >{displayText}</span>
+                          )}
+                          {canEdit && !isEditingThis && (
+                            <button onClick={() => deleteCheckItem(item.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--border)', padding: 4, opacity: 0.6, display: 'flex', alignItems: 'center' }}>
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <div key={item.id} style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '5px 0', borderBottom: '1px solid var(--border)',
+                      }}>
                         <button
-                          onClick={() => deleteCheckItem(item.id)}
+                          onClick={() => canEdit && toggleCheckItem(item)}
+                          disabled={!canEdit}
                           style={{
-                            background: 'none', border: 'none', cursor: 'pointer',
-                            color: 'var(--border)', padding: 4, opacity: 0.6,
-                            display: 'flex', alignItems: 'center',
+                            width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+                            border: '2px solid', cursor: canEdit ? 'pointer' : 'default',
+                            borderColor: item.done ? '#10B981' : 'var(--border)',
+                            background: item.done ? '#10B981' : 'transparent',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
                           }}
-                        ><X size={12} /></button>
-                      )}
-                    </div>
-                  ))}
+                        >
+                          {item.done && <Check size={9} color="white" strokeWidth={3} />}
+                        </button>
+                        {isEditingThis ? (
+                          <input
+                            autoFocus
+                            value={editingItemText}
+                            onChange={e => setEditingItemText(e.target.value)}
+                            onBlur={() => updateCheckItem(item.id, editingItemText)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') updateCheckItem(item.id, editingItemText)
+                              if (e.key === 'Escape') setEditingItemId(null)
+                            }}
+                            style={{
+                              flex: 1, border: 'none', outline: 'none', fontSize: 14,
+                              color: 'var(--text)', background: 'transparent', fontFamily: 'inherit',
+                            }}
+                          />
+                        ) : (
+                          <span
+                            onClick={() => canEdit && !item.done && (setEditingItemId(item.id), setEditingItemText(item.text))}
+                            style={{
+                              flex: 1, fontSize: 14,
+                              color: item.done ? 'var(--muted)' : 'var(--text)',
+                              textDecoration: item.done ? 'line-through' : 'none',
+                              cursor: canEdit && !item.done ? 'text' : 'default',
+                            }}
+                          >{displayText}</span>
+                        )}
+                        {canEdit && !isEditingThis && (
+                          <button onClick={() => deleteCheckItem(item.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--border)', padding: 4, opacity: 0.6, display: 'flex', alignItems: 'center' }}>
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
 
@@ -444,9 +522,9 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
                   <input
                     autoFocus
-                    placeholder="Add item and press Enter..."
-                    value={newCheckText}
-                    onChange={e => setNewCheckText(e.target.value)}
+                    placeholder={newCheckText.startsWith('# ') ? 'Section name...' : 'Add item and press Enter...'}
+                    value={newCheckText.startsWith('# ') ? newCheckText.slice(2) : newCheckText}
+                    onChange={e => setNewCheckText(newCheckText.startsWith('# ') ? '# ' + e.target.value : e.target.value)}
                     onKeyDown={e => {
                       if (e.key === 'Enter') addCheckItem()
                       if (e.key === 'Escape') { setAddingCheck(false); setNewCheckText('') }
@@ -456,21 +534,33 @@ export default function TaskDetailPanel({ taskId, onClose }: Props) {
                       flex: 1, padding: '6px 10px', borderRadius: 6,
                       border: '1px solid var(--border)', fontSize: 14,
                       outline: 'none', fontFamily: 'inherit',
+                      fontWeight: newCheckText.startsWith('# ') ? 700 : 400,
                     }}
                   />
                 </div>
               ) : canEdit ? (
-                <button
-                  onClick={() => setAddingCheck(true)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    color: 'var(--primary)', fontSize: 14, fontWeight: 600, padding: '4px 0',
-                    marginTop: 4,
-                  }}
-                >
-                  <Plus size={15} /> Add checklist item
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 4 }}>
+                  <button
+                    onClick={() => { setNewCheckText(''); setAddingCheck(true) }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: 'var(--primary)', fontSize: 14, fontWeight: 600, padding: '4px 0',
+                    }}
+                  >
+                    <Plus size={15} /> Add checklist item
+                  </button>
+                  <button
+                    onClick={() => { setNewCheckText('# '); setAddingCheck(true) }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: 'var(--muted)', fontSize: 13, fontWeight: 500, padding: '4px 0',
+                    }}
+                  >
+                    + Add section
+                  </button>
+                </div>
               ) : null}
             </div>
 
