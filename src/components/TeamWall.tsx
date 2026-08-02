@@ -54,7 +54,7 @@ function ManageTeamModal({ onClose, onChanged }: { onClose: () => void; onChange
     setSearching(true)
     const { data } = await supabase
       .from('profiles')
-      .select('id, name, username, avatar_url')
+      .select('*')
       .neq('id', user?.id)
       .or(`username.ilike.%${q}%,name.ilike.%${q}%`)
       .limit(5)

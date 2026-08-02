@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, ChevronDown, ChevronUp, Search, UserPlus } from 'lucide-react'
 import { useApp } from '@/contexts/AppContext'
 import { supabase } from '@/lib/supabase'
@@ -14,8 +14,9 @@ interface Props {
 }
 
 export default function AddTaskModal({ onClose, task, defaultProjectId, defaultAssignee }: Props) {
-  const { addTask, updateTask, projects, user } = useApp()
+  const { addTask, updateTask, projects, user, profile } = useApp()
   const isEditing = !!task
+  const isTeam = profile?.account_type === 'team'
 
   const [title, setTitle] = useState(task?.title ?? '')
   const [notes, setNotes] = useState(task?.notes ?? '')
@@ -25,23 +26,30 @@ export default function AddTaskModal({ onClose, task, defaultProjectId, defaultA
   const [recurrence, setRecurrence] = useState<string | null>(task?.recurrence ?? null)
   const [assignee, setAssignee] = useState<Profile | null>(task?.assignee_profile ?? defaultAssignee ?? null)
   const [assignSearch, setAssignSearch] = useState('')
-  const [searchResults, setSearchResults] = useState<Profile[]>([])
-  const [searching, setSearching] = useState(false)
+  const [teamMembers, setTeamMembers] = useState<Profile[]>([])
   const [saving, setSaving] = useState(false)
 
-  async function searchUsers(query: string) {
-    setAssignSearch(query)
-    if (query.trim().length < 3) { setSearchResults([]); return }
-    setSearching(true)
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .neq('id', user?.id)
-      .or(`username.ilike.%${query}%,name.ilike.%${query}%`)
-      .limit(5)
-    setSearchResults(data ?? [])
-    setSearching(false)
-  }
+  useEffect(() => {
+    if (!isTeam || !user) return
+    async function loadTeamMembers() {
+      const { data: members } = await supabase
+        .from('team_members')
+        .select('member_id')
+        .eq('owner_id', user!.id)
+      if (!members || members.length === 0) return
+      const ids = members.map(m => m.member_id)
+      const { data: profiles } = await supabase.from('profiles').select('*').in('id', ids)
+      setTeamMembers(profiles ?? [])
+    }
+    loadTeamMembers()
+  }, [isTeam, user?.id])
+
+  const filteredMembers = assignSearch.trim().length >= 2
+    ? teamMembers.filter(m =>
+        m.name?.toLowerCase().includes(assignSearch.toLowerCase()) ||
+        m.username?.toLowerCase().includes(assignSearch.toLowerCase())
+      )
+    : teamMembers
 
   async function handleSave() {
     if (!title.trim()) return
@@ -211,61 +219,63 @@ export default function AddTaskModal({ onClose, task, defaultProjectId, defaultA
             </div>
           )}
 
-          {/* Assign to user */}
-          <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
-              <UserPlus size={14} /> Assign to
-            </span>
+          {/* Assign to — team accounts only */}
+          {isTeam && (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
+                <UserPlus size={14} /> Assign to
+              </span>
 
-            {assignee ? (
-              <div className="flex items-center justify-between px-3 py-2 rounded-xl border" style={{ borderColor: 'var(--primary)' }}>
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold">
-                    {assignee.name?.[0]?.toUpperCase()}
+              {assignee ? (
+                <div className="flex items-center justify-between px-3 py-2 rounded-xl border" style={{ borderColor: 'var(--primary)' }}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold">
+                      {assignee.name?.[0]?.toUpperCase()}
+                    </div>
+                    <span className="text-sm font-medium">{assignee.name}</span>
+                    <span className="text-xs" style={{ color: 'var(--muted)' }}>@{assignee.username}</span>
                   </div>
-                  <span className="text-sm font-medium">{assignee.name}</span>
-                  <span className="text-xs" style={{ color: 'var(--muted)' }}>@{assignee.username}</span>
+                  <button onClick={() => setAssignee(null)} className="text-gray-400 hover:text-gray-600">
+                    <X size={14} />
+                  </button>
                 </div>
-                <button onClick={() => setAssignee(null)} className="text-gray-400 hover:text-gray-600">
-                  <X size={14} />
-                </button>
-              </div>
-            ) : (
-              <div className="relative">
+              ) : teamMembers.length === 0 ? (
+                <p className="text-xs px-1" style={{ color: 'var(--muted)' }}>
+                  No team members yet — add people from the Team Wall.
+                </p>
+              ) : (
                 <div className="relative">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--muted)' }} />
                   <input
                     className="input pl-8"
-                    placeholder="Search by name or username..."
+                    placeholder="Search team members..."
                     value={assignSearch}
-                    onChange={e => searchUsers(e.target.value)}
+                    onChange={e => setAssignSearch(e.target.value)}
                   />
+                  {filteredMembers.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 rounded-xl border shadow-lg z-20 overflow-hidden"
+                      style={{ background: 'white', borderColor: 'var(--border)' }}>
+                      {filteredMembers.map(p => (
+                        <button
+                          key={p.id}
+                          onClick={() => { setAssignee(p); setAssignSearch('') }}
+                          className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-gray-50 text-left"
+                        >
+                          <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                            {p.name?.[0]?.toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-medium">{p.name}</p>
+                            <p className="text-xs" style={{ color: 'var(--muted)' }}>@{p.username}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                {(searchResults.length > 0 || searching) && (
-                  <div className="absolute top-full left-0 right-0 mt-1 rounded-xl border shadow-lg z-20 overflow-hidden"
-                    style={{ background: 'white', borderColor: 'var(--border)' }}>
-                    {searching ? (
-                      <p className="text-xs text-center py-3" style={{ color: 'var(--muted)' }}>Searching...</p>
-                    ) : searchResults.map(p => (
-                      <button
-                        key={p.id}
-                        onClick={() => { setAssignee(p); setAssignSearch(''); setSearchResults([]) }}
-                        className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-gray-50 text-left"
-                      >
-                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                          {p.name?.[0]?.toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="font-medium">{p.name}</p>
-                          <p className="text-xs" style={{ color: 'var(--muted)' }}>@{p.username}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           <button
             className="btn-primary py-3 mt-1"

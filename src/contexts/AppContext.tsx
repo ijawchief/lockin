@@ -65,6 +65,8 @@ interface AppState {
   togglePush: () => Promise<void>
   todayCompletions: TaskCompletion[]
   toggleRecurringDone: (taskId: string) => Promise<void>
+  switchToTeam: (teamName: string) => Promise<void>
+  switchToPersonal: () => Promise<void>
 }
 
 const AppContext = createContext<AppState | null>(null)
@@ -870,6 +872,14 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
   async function acceptTask(taskId: string) { await updateTask(taskId, { assignment_status: 'accepted' }) }
   async function declineTask(taskId: string) { await updateTask(taskId, { assignment_status: 'declined' }) }
 
+  async function switchToTeam(teamName: string) {
+    await updateProfile({ account_type: 'team', team_name: teamName.trim() })
+  }
+
+  async function switchToPersonal() {
+    await updateProfile({ account_type: 'personal', team_name: null })
+  }
+
   return (
     <AppContext.Provider value={{
       user, profile, tasks, projects, sessions, settings, presence, notifications,
@@ -883,6 +893,7 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
       dismissNotification,
       pushEnabled, togglePush,
       todayCompletions, toggleRecurringDone,
+      switchToTeam, switchToPersonal,
     }}>
       {children}
     </AppContext.Provider>

@@ -20,6 +20,8 @@ export interface Profile {
   streak: number
   last_session_date: string | null
   created_at: string
+  account_type: 'personal' | 'team'
+  team_name: string | null
 }
 
 export interface Task {
