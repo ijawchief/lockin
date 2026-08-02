@@ -74,10 +74,11 @@ function ProjectFormModal({
 }
 
 export default function ProjectsView() {
-  const { projects, tasks, deleteProject, user, profile, teamName } = useApp()
-  const isTeam = profile?.account_type === 'team'
+  const { projects, tasks, deleteProject, user, profile, teamName, isTeamManager } = useApp()
+  const isTeamOwner = profile?.account_type === 'team'
+  const canSeeWall = isTeamOwner || isTeamManager
 
-  const [view, setView] = useState<'wall' | 'projects'>(isTeam ? 'wall' : 'projects')
+  const [view, setView] = useState<'wall' | 'projects'>(canSeeWall ? 'wall' : 'projects')
   const [showAdd, setShowAdd] = useState(false)
   const [editProject, setEditProject] = useState<Project | null>(null)
   const [editTask, setEditTask] = useState<Task | null>(null)
@@ -96,7 +97,7 @@ export default function ProjectsView() {
     <div className="scroll-area pt-4">
       {/* Header with optional Wall/Projects toggle */}
       <div className="flex items-center justify-between mb-4 px-4">
-        {isTeam ? (
+        {canSeeWall ? (
           <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: 'var(--surface)' }}>
             <button
               onClick={() => setView('wall')}
@@ -130,7 +131,7 @@ export default function ProjectsView() {
       </div>
 
       {/* Team Wall */}
-      {isTeam && view === 'wall' && <TeamWall />}
+      {canSeeWall && view === 'wall' && <TeamWall />}
 
       {/* Projects list */}
       {view === 'projects' && (

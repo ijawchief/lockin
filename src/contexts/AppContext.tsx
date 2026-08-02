@@ -69,6 +69,8 @@ interface AppState {
   switchToPersonal: () => Promise<void>
   isOnTeam: boolean
   teamName: string | null
+  isTeamManager: boolean
+  managedTeamOwnerId: string | null
 }
 
 const AppContext = createContext<AppState | null>(null)
@@ -180,6 +182,8 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
   const [pushEnabled, setPushEnabled] = useState(false)
   const [isOnTeam, setIsOnTeam] = useState(false)
   const [teamName, setTeamName] = useState<string | null>(null)
+  const [isTeamManager, setIsTeamManager] = useState(false)
+  const [managedTeamOwnerId, setManagedTeamOwnerId] = useState<string | null>(null)
   const [todayCompletions, setTodayCompletions] = useState<TaskCompletion[]>([])
   const [darkMode, setDarkMode] = useState<boolean>(() =>
     typeof window !== 'undefined' && localStorage.getItem('dark_mode') === 'true'
@@ -462,28 +466,36 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
       profileRef.current = data
       broadcastPresence()
 
-      // Determine team membership: owner or member of any team
+      // Determine team membership: owner, manager, or member
       if (data.account_type === 'team') {
         setIsOnTeam(true)
         setTeamName(data.team_name ?? null)
+        setIsTeamManager(false)
+        setManagedTeamOwnerId(null)
       } else {
         const { data: membership } = await supabase
           .from('team_members')
-          .select('owner_id')
+          .select('owner_id, role')
           .eq('member_id', user.id)
           .limit(1)
         if (membership && membership.length > 0) {
+          const { owner_id, role } = membership[0]
           setIsOnTeam(true)
+          const isManager = role === 'manager'
+          setIsTeamManager(isManager)
+          setManagedTeamOwnerId(isManager ? owner_id : null)
           // Load the owner's team name
           const { data: ownerProfile } = await supabase
             .from('profiles')
             .select('team_name')
-            .eq('id', membership[0].owner_id)
+            .eq('id', owner_id)
             .single()
           setTeamName(ownerProfile?.team_name ?? null)
         } else {
           setIsOnTeam(false)
           setTeamName(null)
+          setIsTeamManager(false)
+          setManagedTeamOwnerId(null)
         }
       }
     }
@@ -905,12 +917,16 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
     await updateProfile({ account_type: 'team', team_name: name.trim() })
     setIsOnTeam(true)
     setTeamName(name.trim())
+    setIsTeamManager(false)
+    setManagedTeamOwnerId(null)
   }
 
   async function switchToPersonal() {
     await updateProfile({ account_type: 'personal', team_name: null })
     setIsOnTeam(false)
     setTeamName(null)
+    setIsTeamManager(false)
+    setManagedTeamOwnerId(null)
   }
 
   return (
@@ -928,6 +944,7 @@ export function AppProvider({ children, initialUser }: { children: React.ReactNo
       todayCompletions, toggleRecurringDone,
       switchToTeam, switchToPersonal,
       isOnTeam, teamName,
+      isTeamManager, managedTeamOwnerId,
     }}>
       {children}
     </AppContext.Provider>

@@ -14,9 +14,12 @@ interface Props {
 }
 
 export default function AddTaskModal({ onClose, task, defaultProjectId, defaultAssignee }: Props) {
-  const { addTask, updateTask, projects, user, profile } = useApp()
+  const { addTask, updateTask, projects, user, profile, isTeamManager, managedTeamOwnerId } = useApp()
   const isEditing = !!task
-  const isTeam = profile?.account_type === 'team'
+  const isTeamOwner = profile?.account_type === 'team'
+  const canAssign = isTeamOwner || isTeamManager
+  // Owners load from their own team; managers load from the team they manage
+  const teamOwnerId = isTeamOwner ? user?.id : (managedTeamOwnerId ?? user?.id)
 
   const [title, setTitle] = useState(task?.title ?? '')
   const [notes, setNotes] = useState(task?.notes ?? '')
@@ -30,19 +33,19 @@ export default function AddTaskModal({ onClose, task, defaultProjectId, defaultA
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    if (!isTeam || !user) return
+    if (!canAssign || !teamOwnerId) return
     async function loadTeamMembers() {
       const { data: members } = await supabase
         .from('team_members')
         .select('member_id')
-        .eq('owner_id', user!.id)
+        .eq('owner_id', teamOwnerId)
       if (!members || members.length === 0) return
       const ids = members.map(m => m.member_id)
       const { data: profiles } = await supabase.from('profiles').select('*').in('id', ids)
       setTeamMembers(profiles ?? [])
     }
     loadTeamMembers()
-  }, [isTeam, user?.id])
+  }, [canAssign, teamOwnerId])
 
   const filteredMembers = assignSearch.trim().length >= 2
     ? teamMembers.filter(m =>
@@ -219,8 +222,8 @@ export default function AddTaskModal({ onClose, task, defaultProjectId, defaultA
             </div>
           )}
 
-          {/* Assign to — team accounts only */}
-          {isTeam && (
+          {/* Assign to — team owners and managers only */}
+          {canAssign && (
             <div className="flex flex-col gap-1.5">
               <span className="text-sm font-medium flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
                 <UserPlus size={14} /> Assign to

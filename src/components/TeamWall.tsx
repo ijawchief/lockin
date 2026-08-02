@@ -21,13 +21,16 @@ function avatarColor(id: string) {
   return COLORS[Math.abs(h) % COLORS.length]
 }
 
+interface TeamMember { profile: Profile; role: 'member' | 'manager' }
+
 function ManageTeamModal({ onClose, onChanged }: { onClose: () => void; onChanged: () => void }) {
   const { user } = useApp()
-  const [members, setMembers] = useState<Profile[]>([])
+  const [members, setMembers] = useState<TeamMember[]>([])
   const [search, setSearch] = useState('')
   const [results, setResults] = useState<Profile[]>([])
   const [searching, setSearching] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [addRole, setAddRole] = useState<'member' | 'manager'>('member')
 
   useEffect(() => { loadMembers() }, [])
 
@@ -35,13 +38,15 @@ function ManageTeamModal({ onClose, onChanged }: { onClose: () => void; onChange
     setLoading(true)
     const { data } = await supabase
       .from('team_members')
-      .select('member_id')
+      .select('member_id, role')
       .eq('owner_id', user?.id)
-    const memberIds = (data ?? []).map((r: any) => r.member_id as string)
+    const rows = data ?? []
+    const memberIds = rows.map((r: any) => r.member_id as string)
     if (memberIds.length > 0) {
       const { data: profiles } = await supabase
-        .from('profiles').select('id, name, username, avatar_url').in('id', memberIds)
-      setMembers((profiles ?? []) as Profile[])
+        .from('profiles').select('*').in('id', memberIds)
+      const profileMap = Object.fromEntries((profiles ?? []).map((p: Profile) => [p.id, p]))
+      setMembers(rows.map((r: any) => ({ profile: profileMap[r.member_id], role: r.role ?? 'member' })).filter((m: TeamMember) => m.profile))
     } else {
       setMembers([])
     }
@@ -58,21 +63,26 @@ function ManageTeamModal({ onClose, onChanged }: { onClose: () => void; onChange
       .neq('id', user?.id)
       .or(`username.ilike.%${q}%,name.ilike.%${q}%`)
       .limit(5)
-    setResults((data ?? []).filter((p: Profile) => !members.some(m => m.id === p.id)))
+    setResults((data ?? []).filter((p: Profile) => !members.some(m => m.profile.id === p.id)))
     setSearching(false)
   }
 
   async function addMember(profile: Profile) {
-    await supabase.from('team_members').insert({ owner_id: user?.id, member_id: profile.id })
-    setMembers(prev => [...prev, profile])
+    await supabase.from('team_members').insert({ owner_id: user?.id, member_id: profile.id, role: addRole })
+    setMembers(prev => [...prev, { profile, role: addRole }])
     setResults(prev => prev.filter(p => p.id !== profile.id))
     setSearch('')
     onChanged()
   }
 
+  async function setRole(memberId: string, role: 'member' | 'manager') {
+    await supabase.from('team_members').update({ role }).eq('owner_id', user?.id).eq('member_id', memberId)
+    setMembers(prev => prev.map(m => m.profile.id === memberId ? { ...m, role } : m))
+  }
+
   async function removeMember(memberId: string) {
     await supabase.from('team_members').delete().eq('owner_id', user?.id).eq('member_id', memberId)
-    setMembers(prev => prev.filter(m => m.id !== memberId))
+    setMembers(prev => prev.filter(m => m.profile.id !== memberId))
     onChanged()
   }
 
@@ -84,6 +94,22 @@ function ManageTeamModal({ onClose, onChanged }: { onClose: () => void; onChange
           <button onClick={onClose} className="btn-ghost w-8 h-8 flex items-center justify-center p-0">
             <X size={18} />
           </button>
+        </div>
+
+        {/* Role selector for new member */}
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Adding as:</span>
+          {(['member', 'manager'] as const).map(r => (
+            <button key={r} onClick={() => setAddRole(r)}
+              className="px-3 py-1 rounded-full text-xs font-semibold border transition-all"
+              style={{
+                background: addRole === r ? 'var(--primary)' : 'transparent',
+                color: addRole === r ? 'white' : 'var(--muted)',
+                borderColor: addRole === r ? 'var(--primary)' : 'var(--border)',
+              }}>
+              {r === 'manager' ? 'Manager' : 'Member'}
+            </button>
+          ))}
         </div>
 
         {/* Search */}
@@ -112,7 +138,9 @@ function ManageTeamModal({ onClose, onChanged }: { onClose: () => void; onChange
                       <p className="font-medium text-sm">{p.name}</p>
                       <p className="text-xs" style={{ color: 'var(--muted)' }}>@{p.username}</p>
                     </div>
-                    <span className="ml-auto text-xs font-medium" style={{ color: 'var(--primary)' }}>Add</span>
+                    <span className="ml-auto text-xs font-medium" style={{ color: 'var(--primary)' }}>
+                      Add as {addRole}
+                    </span>
                   </button>
                 ))
               }
@@ -129,27 +157,39 @@ function ManageTeamModal({ onClose, onChanged }: { onClose: () => void; onChange
           </p>
         ) : (
           <div className="flex flex-col gap-2">
-            {members.map(m => (
+            {members.map(({ profile: m, role }) => (
               <div key={m.id} className="flex items-center justify-between py-2 px-3 rounded-xl"
                 style={{ background: 'var(--surface)' }}>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold overflow-hidden"
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold overflow-hidden flex-shrink-0"
                     style={{ background: avatarColor(m.id) + '22', color: avatarColor(m.id) }}>
                     {m.avatar_url
                       ? <img src={m.avatar_url} alt="" className="w-full h-full object-cover" />
                       : initials(m.name)
                     }
                   </div>
-                  <div>
-                    <p className="text-sm font-medium">{m.name}</p>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{m.name}</p>
                     <p className="text-xs" style={{ color: 'var(--muted)' }}>@{m.username}</p>
                   </div>
                 </div>
-                <button onClick={() => removeMember(m.id)}
-                  className="text-xs font-medium px-2.5 py-1 rounded-lg"
-                  style={{ color: '#EF4444', background: '#FEE2E2' }}>
-                  Remove
-                </button>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* Role toggle */}
+                  <button
+                    onClick={() => setRole(m.id, role === 'manager' ? 'member' : 'manager')}
+                    className="text-xs font-semibold px-2.5 py-1 rounded-lg"
+                    style={{
+                      background: role === 'manager' ? '#EEF2FF' : 'var(--border)',
+                      color: role === 'manager' ? '#6366F1' : 'var(--muted)',
+                    }}>
+                    {role === 'manager' ? 'Manager' : 'Member'}
+                  </button>
+                  <button onClick={() => removeMember(m.id)}
+                    className="text-xs font-medium px-2.5 py-1 rounded-lg"
+                    style={{ color: '#EF4444', background: '#FEE2E2' }}>
+                    Remove
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -160,33 +200,37 @@ function ManageTeamModal({ onClose, onChanged }: { onClose: () => void; onChange
 }
 
 export default function TeamWall() {
-  const { tasks, user, profile, presence, todayCompletions } = useApp()
+  const { tasks, user, profile, presence, todayCompletions, isTeamManager, managedTeamOwnerId } = useApp()
+  const isOwner = profile?.account_type === 'team'
+  const wallOwnerId = isOwner ? user?.id : (managedTeamOwnerId ?? user?.id)
+
   const [members, setMembers] = useState<Profile[]>([])
   const [showManage, setShowManage] = useState(false)
   const [assignTo, setAssignTo] = useState<Profile | null>(null)
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null)
 
-  useEffect(() => { loadMembers() }, [user?.id, profile?.id])
+  useEffect(() => { loadMembers() }, [user?.id, profile?.id, managedTeamOwnerId])
 
   async function loadMembers() {
     if (!user) return
     const { data } = await supabase
       .from('team_members')
       .select('member_id')
-      .eq('owner_id', user.id)
+      .eq('owner_id', wallOwnerId)
 
     const memberIds = (data ?? []).map((r: any) => r.member_id as string)
     let teammates: Profile[] = []
     if (memberIds.length > 0) {
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, name, username, avatar_url')
+        .select('*')
         .in('id', memberIds)
       teammates = (profiles ?? []) as Profile[]
     }
 
+    // For owners: include themselves at top. For managers: don't include self.
     const all: Profile[] = []
-    if (profile) all.push(profile)
+    if (isOwner && profile) all.push(profile)
     teammates.forEach(t => { if (!all.some(a => a.id === t.id)) all.push(t) })
     setMembers(all)
   }
@@ -217,27 +261,31 @@ export default function TeamWall() {
   return (
     <div style={{ padding: '0 16px 24px' }}>
 
-      {/* Manage team button */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-        <button
-          onClick={() => setShowManage(true)}
-          className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-xl"
-          style={{ border: '1px solid var(--border)', color: 'var(--muted)', background: 'transparent' }}
-        >
-          <Users size={14} /> Manage team
-        </button>
-      </div>
+      {/* Manage team button — owners only */}
+      {isOwner && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <button
+            onClick={() => setShowManage(true)}
+            className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-xl"
+            style={{ border: '1px solid var(--border)', color: 'var(--muted)', background: 'transparent' }}
+          >
+            <Users size={14} /> Manage team
+          </button>
+        </div>
+      )}
 
-      {members.length <= 1 && (
+      {members.length === 0 && (
         <div className="card p-8 flex flex-col items-center gap-3 text-center">
           <div style={{ fontSize: 32 }}>👥</div>
           <p className="text-sm font-medium">Your team is empty</p>
           <p className="text-sm" style={{ color: 'var(--muted)' }}>
             Add your team members to see their progress here every day.
           </p>
-          <button className="btn-primary px-5 py-2.5 text-sm" onClick={() => setShowManage(true)}>
-            Add team members
-          </button>
+          {isOwner && (
+            <button className="btn-primary px-5 py-2.5 text-sm" onClick={() => setShowManage(true)}>
+              Add team members
+            </button>
+          )}
         </div>
       )}
 
