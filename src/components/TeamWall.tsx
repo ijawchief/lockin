@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { UserPlus } from 'lucide-react'
+import { UserPlus, Users, X, Search } from 'lucide-react'
 import { useApp, isOccurrenceRecurrence, isScheduledToday } from '@/contexts/AppContext'
 import { supabase } from '@/lib/supabase'
 import type { Profile, Task } from '@/lib/types'
@@ -21,35 +21,154 @@ function avatarColor(id: string) {
   return COLORS[Math.abs(h) % COLORS.length]
 }
 
-export default function TeamWall() {
-  const { tasks, projects, user, profile, presence, todayCompletions } = useApp()
+function ManageTeamModal({ onClose, onChanged }: { onClose: () => void; onChanged: () => void }) {
+  const { user } = useApp()
   const [members, setMembers] = useState<Profile[]>([])
+  const [search, setSearch] = useState('')
+  const [results, setResults] = useState<Profile[]>([])
+  const [searching, setSearching] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => { loadMembers() }, [])
+
+  async function loadMembers() {
+    setLoading(true)
+    const { data } = await supabase
+      .from('team_members')
+      .select('member_id, profiles:member_id(id, name, username, avatar_url)')
+      .eq('owner_id', user?.id)
+    setMembers((data ?? []).map((r: any) => r.profiles).filter(Boolean))
+    setLoading(false)
+  }
+
+  async function searchUsers(q: string) {
+    setSearch(q)
+    if (q.trim().length < 3) { setResults([]); return }
+    setSearching(true)
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, name, username, avatar_url')
+      .neq('id', user?.id)
+      .or(`username.ilike.%${q}%,name.ilike.%${q}%`)
+      .limit(5)
+    setResults((data ?? []).filter((p: Profile) => !members.some(m => m.id === p.id)))
+    setSearching(false)
+  }
+
+  async function addMember(profile: Profile) {
+    await supabase.from('team_members').insert({ owner_id: user?.id, member_id: profile.id })
+    setMembers(prev => [...prev, profile])
+    setResults(prev => prev.filter(p => p.id !== profile.id))
+    setSearch('')
+    onChanged()
+  }
+
+  async function removeMember(memberId: string) {
+    await supabase.from('team_members').delete().eq('owner_id', user?.id).eq('member_id', memberId)
+    setMembers(prev => prev.filter(m => m.id !== memberId))
+    onChanged()
+  }
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal slide-up">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold">Your Team</h2>
+          <button onClick={onClose} className="btn-ghost w-8 h-8 flex items-center justify-center p-0">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="relative mb-4">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--muted)' }} />
+          <input
+            className="input pl-8"
+            placeholder="Search by name or username..."
+            value={search}
+            onChange={e => searchUsers(e.target.value)}
+          />
+          {(results.length > 0 || searching) && (
+            <div className="absolute top-full left-0 right-0 mt-1 rounded-xl border shadow-lg z-20 overflow-hidden"
+              style={{ background: 'white', borderColor: 'var(--border)' }}>
+              {searching
+                ? <p className="text-xs text-center py-3" style={{ color: 'var(--muted)' }}>Searching…</p>
+                : results.map(p => (
+                  <button key={p.id}
+                    onClick={() => addMember(p)}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-gray-50 text-left">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                      style={{ background: avatarColor(p.id) + '22', color: avatarColor(p.id) }}>
+                      {initials(p.name)}
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">{p.name}</p>
+                      <p className="text-xs" style={{ color: 'var(--muted)' }}>@{p.username}</p>
+                    </div>
+                    <span className="ml-auto text-xs font-medium" style={{ color: 'var(--primary)' }}>Add</span>
+                  </button>
+                ))
+              }
+            </div>
+          )}
+        </div>
+
+        {/* Current members */}
+        {loading ? (
+          <p className="text-sm text-center py-4" style={{ color: 'var(--muted)' }}>Loading…</p>
+        ) : members.length === 0 ? (
+          <p className="text-sm text-center py-4" style={{ color: 'var(--muted)' }}>
+            No team members yet — search above to add someone.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {members.map(m => (
+              <div key={m.id} className="flex items-center justify-between py-2 px-3 rounded-xl"
+                style={{ background: 'var(--surface)' }}>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold overflow-hidden"
+                    style={{ background: avatarColor(m.id) + '22', color: avatarColor(m.id) }}>
+                    {m.avatar_url
+                      ? <img src={m.avatar_url} alt="" className="w-full h-full object-cover" />
+                      : initials(m.name)
+                    }
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{m.name}</p>
+                    <p className="text-xs" style={{ color: 'var(--muted)' }}>@{m.username}</p>
+                  </div>
+                </div>
+                <button onClick={() => removeMember(m.id)}
+                  className="text-xs font-medium px-2.5 py-1 rounded-lg"
+                  style={{ color: '#EF4444', background: '#FEE2E2' }}>
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default function TeamWall() {
+  const { tasks, user, profile, presence, todayCompletions } = useApp()
+  const [members, setMembers] = useState<Profile[]>([])
+  const [showManage, setShowManage] = useState(false)
   const [assignTo, setAssignTo] = useState<Profile | null>(null)
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null)
 
-  const projectIds = projects.map(p => p.id).join(',')
-  useEffect(() => {
-    if (!projects.length) return
-    loadMembers()
-  }, [projectIds])
+  useEffect(() => { loadMembers() }, [user?.id])
 
   async function loadMembers() {
-    const ids = projects.map(p => p.id)
+    if (!user) return
     const { data } = await supabase
-      .from('project_members')
-      .select('user_id')
-      .in('project_id', ids)
+      .from('team_members')
+      .select('member_id, profiles:member_id(id, name, username, avatar_url)')
+      .eq('owner_id', user.id)
 
-    const teammateIds = [...new Set((data ?? []).map((r: any) => r.user_id as string))]
-      .filter(id => id !== user?.id)
-
-    let teammates: Profile[] = []
-    if (teammateIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from('profiles').select('*').in('id', teammateIds)
-      teammates = profiles ?? []
-    }
-
+    const teammates: Profile[] = (data ?? []).map((r: any) => r.profiles).filter(Boolean)
     const all: Profile[] = []
     if (profile) all.push(profile)
     teammates.forEach(t => { if (!all.some(a => a.id === t.id)) all.push(t) })
@@ -60,12 +179,10 @@ export default function TeamWall() {
     const todayStr = new Date().toISOString().split('T')[0]
     const memberTasks = tasks.filter(t => t.assigned_to === member.id)
 
-    // Only occurrence tasks completed today — not old done=true tasks
     const doneToday = memberTasks.filter(t =>
       isOccurrenceRecurrence(t.recurrence) && todayCompletions.some(c => c.task_id === t.id)
     )
 
-    // Active tasks due today or overdue (or no due date) — never future tasks
     const stillToDo = memberTasks.filter(t => {
       if (t.done) return false
       if (isOccurrenceRecurrence(t.recurrence)) {
@@ -74,180 +191,198 @@ export default function TeamWall() {
       if (t.due_date && t.due_date > todayStr) return false
       return true
     })
+
     const pres = Object.values(presence).find(p => p.user_id === member.id)
     const isLive = !!(pres?.is_running)
     const currentTask = pres?.task_id ? (tasks.find(t => t.id === pres.task_id) ?? null) : null
     return { doneToday, stillToDo, isLive, currentTask }
   }
 
-  if (!projects.length) {
-    return (
-      <div style={{ padding: '48px 16px', textAlign: 'center' }}>
-        <p style={{ color: 'var(--muted)', fontSize: 14 }}>
-          Create a project and add team members to see the wall.
-        </p>
-      </div>
-    )
-  }
-
   return (
-    <div style={{ padding: '0 16px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {members.map(member => {
-        const { doneToday, stillToDo, isLive, currentTask } = getMemberData(member)
-        const isMe = member.id === user?.id
-        const color = avatarColor(member.id)
-        const noTasks = doneToday.length === 0 && stillToDo.length === 0
+    <div style={{ padding: '0 16px 24px' }}>
 
-        return (
-          <div key={member.id} className="card" style={{ padding: 16 }}>
+      {/* Manage team button */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+        <button
+          onClick={() => setShowManage(true)}
+          className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-xl"
+          style={{ border: '1px solid var(--border)', color: 'var(--muted)', background: 'transparent' }}
+        >
+          <Users size={14} /> Manage team
+        </button>
+      </div>
 
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: noTasks ? 0 : 14 }}>
-              <div style={{
-                width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
-                background: color + '18', border: `2px solid ${color}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: 700, fontSize: 13, color, overflow: 'hidden',
-              }}>
-                {member.avatar_url
-                  ? <img src={member.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : initials(member.name)
-                }
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
-                  {member.name}{isMe ? ' (you)' : ''}
-                </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
-                  <span style={{
-                    width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
-                    background: isLive ? '#10B981' : 'var(--border)', display: 'inline-block',
-                  }} />
-                  <span style={{ fontSize: 12, color: isLive ? '#10B981' : 'var(--muted)', fontWeight: isLive ? 600 : 400 }}>
-                    {isLive
-                      ? `Live${currentTask ? ` — ${currentTask.title}` : ''}`
-                      : 'Offline'
-                    }
-                  </span>
+      {members.length <= 1 && (
+        <div className="card p-8 flex flex-col items-center gap-3 text-center">
+          <div style={{ fontSize: 32 }}>👥</div>
+          <p className="text-sm font-medium">Your team is empty</p>
+          <p className="text-sm" style={{ color: 'var(--muted)' }}>
+            Add your team members to see their progress here every day.
+          </p>
+          <button className="btn-primary px-5 py-2.5 text-sm" onClick={() => setShowManage(true)}>
+            Add team members
+          </button>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {members.map(member => {
+          const { doneToday, stillToDo, isLive, currentTask } = getMemberData(member)
+          const isMe = member.id === user?.id
+          const color = avatarColor(member.id)
+          const noTasks = doneToday.length === 0 && stillToDo.length === 0
+
+          return (
+            <div key={member.id} className="card" style={{ padding: 16 }}>
+
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: noTasks ? 0 : 14 }}>
+                <div style={{
+                  width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
+                  background: color + '18', border: `2px solid ${color}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontWeight: 700, fontSize: 13, color, overflow: 'hidden',
+                }}>
+                  {member.avatar_url
+                    ? <img src={member.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : initials(member.name)
+                  }
                 </div>
-              </div>
-              {!isMe && (
-                <button
-                  onClick={() => setAssignTo(member)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 5, fontSize: 12,
-                    padding: '5px 10px', borderRadius: 8, flexShrink: 0,
-                    border: '1px solid var(--border)', background: 'transparent',
-                    color: 'var(--muted)', cursor: 'pointer',
-                  }}
-                >
-                  <UserPlus size={12} /> Assign
-                </button>
-              )}
-            </div>
-
-            {/* Live pomo progress */}
-            {isLive && currentTask && (
-              <div style={{
-                background: '#F0FDF4', borderRadius: 8, padding: '10px 12px',
-                border: '1px solid #D1FAE5', marginBottom: 12,
-              }}>
-                <p style={{ margin: '0 0 5px', fontSize: 11, color: '#059669', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Working on
-                </p>
-                <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>
-                  {currentTask.title}
-                </p>
-                {currentTask.estimated_pomos > 0 && (
-                  <>
-                    <div style={{ background: '#D1FAE5', borderRadius: 99, height: 4, overflow: 'hidden' }}>
-                      <div style={{
-                        background: '#10B981', height: '100%', borderRadius: 99, transition: 'width 0.3s',
-                        width: `${Math.min(100, Math.round((currentTask.completed_pomos / currentTask.estimated_pomos) * 100))}%`,
-                      }} />
-                    </div>
-                    <p style={{ margin: '4px 0 0', fontSize: 11, color: '#059669' }}>
-                      {currentTask.completed_pomos}/{currentTask.estimated_pomos} pomos
-                    </p>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Done today */}
-            {doneToday.length > 0 && (
-              <div style={{ marginBottom: stillToDo.length > 0 ? 10 : 0 }}>
-                <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Done today ({doneToday.length})
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  {doneToday.map(t => (
-                    <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-                      onClick={() => setDetailTaskId(t.id)}>
-                      <div style={{
-                        width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
-                        background: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <span style={{ color: 'white', fontSize: 9, fontWeight: 700 }}>✓</span>
-                      </div>
-                      <span style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'line-through', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {t.title}
-                      </span>
-                    </div>
-                  ))}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+                    {member.name}{isMe ? ' (you)' : ''}
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                    <span style={{
+                      width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+                      background: isLive ? '#10B981' : 'var(--border)', display: 'inline-block',
+                    }} />
+                    <span style={{ fontSize: 12, color: isLive ? '#10B981' : 'var(--muted)', fontWeight: isLive ? 600 : 400 }}>
+                      {isLive ? `Live${currentTask ? ` — ${currentTask.title}` : ''}` : 'Offline'}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {/* Still to do */}
-            {stillToDo.length > 0 && (
-              <div>
-                <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Still to do ({stillToDo.length})
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  {stillToDo.map(t => (
-                    <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-                      onClick={() => setDetailTaskId(t.id)}>
-                      <div style={{
-                        width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
-                        border: '2px solid var(--border)', background: 'transparent',
-                      }} />
-                      <span style={{ fontSize: 13, color: 'var(--text)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {t.title}
-                      </span>
-                      {t.project && (
-                        <span style={{
-                          fontSize: 11, padding: '1px 6px', borderRadius: 99, flexShrink: 0,
-                          background: t.project.color + '22', color: t.project.color,
-                        }}>
-                          {t.project.name}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* No tasks */}
-            {noTasks && (
-              <p style={{ fontSize: 13, color: 'var(--muted)', margin: '10px 0 0' }}>
-                Nothing assigned yet.{' '}
                 {!isMe && (
                   <button
                     onClick={() => setAssignTo(member)}
-                    style={{ color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, padding: 0 }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 5, fontSize: 12,
+                      padding: '5px 10px', borderRadius: 8, flexShrink: 0,
+                      border: '1px solid var(--border)', background: 'transparent',
+                      color: 'var(--muted)', cursor: 'pointer',
+                    }}
                   >
-                    Assign something →
+                    <UserPlus size={12} /> Assign
                   </button>
                 )}
-              </p>
-            )}
-          </div>
-        )
-      })}
+              </div>
 
+              {/* Live pomo progress */}
+              {isLive && currentTask && (
+                <div style={{
+                  background: '#F0FDF4', borderRadius: 8, padding: '10px 12px',
+                  border: '1px solid #D1FAE5', marginBottom: 12,
+                }}>
+                  <p style={{ margin: '0 0 5px', fontSize: 11, color: '#059669', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Working on
+                  </p>
+                  <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>
+                    {currentTask.title}
+                  </p>
+                  {currentTask.estimated_pomos > 0 && (
+                    <>
+                      <div style={{ background: '#D1FAE5', borderRadius: 99, height: 4, overflow: 'hidden' }}>
+                        <div style={{
+                          background: '#10B981', height: '100%', borderRadius: 99, transition: 'width 0.3s',
+                          width: `${Math.min(100, Math.round((currentTask.completed_pomos / currentTask.estimated_pomos) * 100))}%`,
+                        }} />
+                      </div>
+                      <p style={{ margin: '4px 0 0', fontSize: 11, color: '#059669' }}>
+                        {currentTask.completed_pomos}/{currentTask.estimated_pomos} pomos
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Done today */}
+              {doneToday.length > 0 && (
+                <div style={{ marginBottom: stillToDo.length > 0 ? 10 : 0 }}>
+                  <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Done today ({doneToday.length})
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {doneToday.map(t => (
+                      <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+                        onClick={() => setDetailTaskId(t.id)}>
+                        <div style={{
+                          width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
+                          background: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <span style={{ color: 'white', fontSize: 9, fontWeight: 700 }}>✓</span>
+                        </div>
+                        <span style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'line-through', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {t.title}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Still to do */}
+              {stillToDo.length > 0 && (
+                <div>
+                  <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Still to do ({stillToDo.length})
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {stillToDo.map(t => (
+                      <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+                        onClick={() => setDetailTaskId(t.id)}>
+                        <div style={{
+                          width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
+                          border: '2px solid var(--border)', background: 'transparent',
+                        }} />
+                        <span style={{ fontSize: 13, color: 'var(--text)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {t.title}
+                        </span>
+                        {t.project && (
+                          <span style={{
+                            fontSize: 11, padding: '1px 6px', borderRadius: 99, flexShrink: 0,
+                            background: t.project.color + '22', color: t.project.color,
+                          }}>
+                            {t.project.name}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* No tasks */}
+              {noTasks && (
+                <p style={{ fontSize: 13, color: 'var(--muted)', margin: '10px 0 0' }}>
+                  Nothing assigned today.{' '}
+                  {!isMe && (
+                    <button
+                      onClick={() => setAssignTo(member)}
+                      style={{ color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, padding: 0 }}
+                    >
+                      Assign something →
+                    </button>
+                  )}
+                </p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {showManage && (
+        <ManageTeamModal onClose={() => setShowManage(false)} onChanged={loadMembers} />
+      )}
       {assignTo && <AddTaskModal defaultAssignee={assignTo} onClose={() => setAssignTo(null)} />}
       {detailTaskId && <TaskDetailPanel taskId={detailTaskId} onClose={() => setDetailTaskId(null)} />}
     </div>
