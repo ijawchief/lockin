@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { UserPlus } from 'lucide-react'
-import { useApp, isOccurrenceRecurrence } from '@/contexts/AppContext'
+import { useApp, isOccurrenceRecurrence, isScheduledToday } from '@/contexts/AppContext'
 import { supabase } from '@/lib/supabase'
 import type { Profile, Task } from '@/lib/types'
 import AddTaskModal from './AddTaskModal'
@@ -56,15 +56,24 @@ export default function TeamWall() {
     setMembers(all)
   }
 
-  function isEffectivelyDone(t: Task) {
-    if (isOccurrenceRecurrence(t.recurrence)) return todayCompletions.some(c => c.task_id === t.id)
-    return t.done
-  }
-
   function getMemberData(member: Profile) {
+    const todayStr = new Date().toISOString().split('T')[0]
     const memberTasks = tasks.filter(t => t.assigned_to === member.id)
-    const doneToday = memberTasks.filter(t => isEffectivelyDone(t))
-    const stillToDo = memberTasks.filter(t => !isEffectivelyDone(t))
+
+    // Only occurrence tasks completed today — not old done=true tasks
+    const doneToday = memberTasks.filter(t =>
+      isOccurrenceRecurrence(t.recurrence) && todayCompletions.some(c => c.task_id === t.id)
+    )
+
+    // Active tasks due today or overdue (or no due date) — never future tasks
+    const stillToDo = memberTasks.filter(t => {
+      if (t.done) return false
+      if (isOccurrenceRecurrence(t.recurrence)) {
+        return !todayCompletions.some(c => c.task_id === t.id) && isScheduledToday(t)
+      }
+      if (t.due_date && t.due_date > todayStr) return false
+      return true
+    })
     const pres = Object.values(presence).find(p => p.user_id === member.id)
     const isLive = !!(pres?.is_running)
     const currentTask = pres?.task_id ? (tasks.find(t => t.id === pres.task_id) ?? null) : null
